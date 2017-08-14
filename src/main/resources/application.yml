@@ -1,0 +1,7 @@
+spring:
+  jpa:
+    database: POSTGRESQL
+    hibernate:
+      ddl-auto: update
+  datasource:
+    platform: postgres
