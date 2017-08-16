@@ -5,3 +5,7 @@ spring:
       ddl-auto: update
   datasource:
     platform: postgres
+  messages:
+      basename: messages/messages
+      cache-seconds: -1
+      encoding: UTF-8

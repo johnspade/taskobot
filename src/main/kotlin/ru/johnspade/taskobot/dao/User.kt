@@ -14,9 +14,11 @@ data class User(
 		@Column(name = "first_name", nullable = false)
 		var firstName: String,
 		@Column(name = "last_name")
-		var lastName: String?,
+		var lastName: String? = null,
 		@Column(name = "username")
-		var username: String?,
+		var username: String? = null,
 		@Column(name = "language_code")
-		var languageCode: String?
+		var languageCode: String? = null,
+		@Column(name = "chat_id")
+		var chatId: Long? = null
 )

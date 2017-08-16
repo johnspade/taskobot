@@ -12,7 +12,7 @@ import java.net.URI
 class BeansConfiguration {
 
 	@Bean
-	open fun dataSource(): DriverManagerDataSource {
+	fun dataSource(): DriverManagerDataSource {
 		val dbUri = URI(System.getenv("DATABASE_URL"))
 		val dataSource = DriverManagerDataSource()
 		dataSource.setDriverClassName("org.postgresql.Driver")
