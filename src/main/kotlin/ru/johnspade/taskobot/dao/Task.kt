@@ -17,11 +17,11 @@ data class Task(
 		val sender: User,
 		@Column(name = "text", nullable = false)
 		val text: String,
-		@Column(name = "created_at", nullable = false)
-		val createdAt: Long,
 		@ManyToOne
 		@JoinColumn(name = "receiver_id")
 		var receiver: User? = null,
+		@Column(name = "created_at", nullable = false)
+		val createdAt: Long = System.currentTimeMillis(),
 		@Column(name = "done_at")
 		var doneAt: Long? = null,
 		@Column(name = "done", nullable = false)
@@ -30,7 +30,7 @@ data class Task(
 
 	@Column(name = "id")
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GeneratedValue(strategy = GenerationType.AUTO)
 	val id: Long = 0
 
 }

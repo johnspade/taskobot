@@ -1,8 +1,5 @@
 package ru.johnspade.taskobot.configuration
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.jdbc.datasource.DriverManagerDataSource
@@ -22,9 +19,5 @@ class BeansConfiguration {
 		dataSource.password = userInfo[1]
 		return dataSource
 	}
-
-	@Bean
-	fun objectMapper(): ObjectMapper = ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
-			.registerModule(KotlinModule())
 
 }

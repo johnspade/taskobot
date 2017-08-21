@@ -1,10 +1,7 @@
 spring:
   jpa:
-    database: POSTGRESQL
     hibernate:
       ddl-auto: update
-  datasource:
-    platform: postgres
   messages:
       basename: messages/messages
       cache-seconds: -1

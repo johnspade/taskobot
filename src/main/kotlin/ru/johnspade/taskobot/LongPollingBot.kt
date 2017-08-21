@@ -14,7 +14,7 @@ class LongPollingBot @Autowired private constructor(
 		private val handler: UpdateHandler,
 		@Value("\${BOT_TOKEN}") private val token: String,
 		@Value("\${BOT_USERNAME}") private val username: String
-) : TelegramLongPollingBot() {
+) : TelegramLongPollingBot(), BotApiMethodExecutor {
 
 	override fun getBotToken(): String {
 		return token
@@ -25,7 +25,7 @@ class LongPollingBot @Autowired private constructor(
 	}
 
 	override fun onUpdateReceived(update: Update) {
-		handler.handleUpdate(this, update).ifPresent {
+		handler.handle(this, update)?.let {
 			@Suppress("UNCHECKED_CAST")
 			execute(it as BotApiMethod<Serializable>)
 		}

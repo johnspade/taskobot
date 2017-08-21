@@ -1,6 +1,5 @@
 package ru.johnspade.taskobot.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
@@ -21,72 +20,70 @@ import org.telegram.telegrambots.api.objects.inlinequery.result.InlineQueryResul
 import org.telegram.telegrambots.api.objects.replykeyboard.ForceReplyKeyboard
 import org.telegram.telegrambots.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.InlineKeyboardButton
-import org.telegram.telegrambots.bots.DefaultAbsSender
 import org.telegram.telegrambots.exceptions.TelegramApiRequestException
 import org.telegram.telegrambots.updateshandlers.SentCallback
+import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
+import ru.johnspade.taskobot.getCustomCallbackData
+import ru.johnspade.taskobot.setCustomCallbackData
 import java.io.Serializable
 import java.lang.Exception
-import java.util.*
 import org.telegram.telegrambots.api.objects.User as TelegramUser
 
+private const val PAGE_SIZE = 5
+
 @Service
-class UpdateHandler @Autowired private constructor(
+class UpdateHandler @Autowired constructor(
 		private val userService: UserService,
 		private val taskService: TaskService,
-		private val objectMapper: ObjectMapper,
 		@Value("\${BOT_TOKEN}") token: String,
 		private val messages: Messages
 ) {
 
 	private val botId = token.split(":")[0].toInt()
 
-	companion object {
-		private val PAGE_SIZE = 5
-	}
-
-	fun handleUpdate(bot: DefaultAbsSender, update: Update): Optional<out BotApiMethod<*>> {
+	fun handle(executor: BotApiMethodExecutor, update: Update): BotApiMethod<*>? {
 		return with(update) {
 			when {
 				hasInlineQuery() -> handleInlineQuery(inlineQuery)
 				hasChosenInlineQuery() -> handleChosenInlineQuery(chosenInlineQuery)
-				hasCallbackQuery() -> handleCallbackQuery(bot, callbackQuery)
+				hasCallbackQuery() -> handleCallbackQuery(executor, callbackQuery)
 				hasMessage() -> handleMessage(message)
-				else -> Optional.empty()
+				else -> null
 			}
 		}
 	}
 
-	fun handleInlineQuery(inlineQuery: InlineQuery): Optional<AnswerInlineQuery> {
+	private fun handleInlineQuery(inlineQuery: InlineQuery): AnswerInlineQuery? {
 		if (inlineQuery.hasQuery()) {
 			val query = inlineQuery.query
 			val messageContent = InputTextMessageContent().enableMarkdown(true).setMessageText("*$query*")
 			val button = InlineKeyboardButton().setText(messages.get("tasks.confirm"))
-					.setJsonCallbackData(CallbackData(CallbackDataType.CONFIRM_TASK))
+					.setCustomCallbackData(CallbackData(CallbackDataType.CONFIRM_TASK))
 			val markupInline = InlineKeyboardMarkup().setKeyboard(listOf(listOf(button)))
 			val article = InlineQueryResultArticle().setInputMessageContent(messageContent).setId("1")
 					.setTitle(messages.get("tasks.create")).setDescription(query).setReplyMarkup(markupInline)
-			return Optional.of(AnswerInlineQuery().setInlineQueryId(inlineQuery.id).setResults(listOf(article)))
+			return AnswerInlineQuery().setInlineQueryId(inlineQuery.id).setResults(listOf(article))
 		}
-		return Optional.empty()
+		return null
 	}
 
-	fun handleChosenInlineQuery(chosenInlineQuery: ChosenInlineQuery): Optional<EditMessageReplyMarkup> {
+	private fun handleChosenInlineQuery(chosenInlineQuery: ChosenInlineQuery): EditMessageReplyMarkup {
 		val user = getOrCreateUser(chosenInlineQuery.from)
-		val task = taskService.save(Task(user, chosenInlineQuery.query, System.currentTimeMillis()))
+		val task = taskService.save(Task(user, chosenInlineQuery.query))
 
 		val button = InlineKeyboardButton().setText(messages.get("tasks.confirm"))
-				.setJsonCallbackData(CallbackData(CallbackDataType.CONFIRM_TASK, taskId = task.id))
+				.setCustomCallbackData(CallbackData(CallbackDataType.CONFIRM_TASK, taskId = task.id))
 		val markupInline = InlineKeyboardMarkup().setKeyboard(listOf(listOf(button)))
-		return Optional.of(EditMessageReplyMarkup().setInlineMessageId(chosenInlineQuery.inlineMessageId)
-				.setReplyMarkup(markupInline))
+		return EditMessageReplyMarkup().setInlineMessageId(chosenInlineQuery.inlineMessageId)
+				.setReplyMarkup(markupInline)
 	}
 
-	fun handleCallbackQuery(bot: DefaultAbsSender, callbackQuery: CallbackQuery): Optional<BotApiMethod<*>> {
-		val data = callbackQuery.getJsonCallbackData()
+	private fun handleCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery): BotApiMethod<*>? {
+		val data = callbackQuery.getCustomCallbackData()
 		return when (data.type) {
 			CallbackDataType.CONFIRM_TASK -> {
 				if (data.taskId == null)
@@ -97,29 +94,29 @@ class UpdateHandler @Autowired private constructor(
 				else
 					handleConfirmTaskReceiverCallbackQuery(callbackQuery, task)
 			}
-			CallbackDataType.USERS -> handleUsersCallbackQuery(bot, callbackQuery, data)
-			CallbackDataType.TASKS -> handleTasksCallbackQuery(bot, callbackQuery, data)
-			CallbackDataType.CHECK_TASK -> handleCheckTaskCallbackQuery(bot, callbackQuery, data)
+			CallbackDataType.USERS -> handleUsersCallbackQuery(executor, callbackQuery, data)
+			CallbackDataType.TASKS -> handleTasksCallbackQuery(executor, callbackQuery, data)
+			CallbackDataType.CHECK_TASK -> handleCheckTaskCallbackQuery(executor, callbackQuery, data)
 		}
 	}
 
-	fun handleConfirmTaskSenderCallbackQuery(callbackQuery: CallbackQuery): Optional<BotApiMethod<*>> {
-		return Optional.of(AnswerCallbackQuery().setText(messages.get("tasks.mustBeConfirmedByReceiver"))
-				.setCallbackQueryId(callbackQuery.id))
+	private fun handleConfirmTaskSenderCallbackQuery(callbackQuery: CallbackQuery): AnswerCallbackQuery {
+		return AnswerCallbackQuery().setText(messages.get("tasks.mustBeConfirmedByReceiver"))
+				.setCallbackQueryId(callbackQuery.id)
 	}
 
-	fun handleConfirmTaskReceiverCallbackQuery(callbackQuery: CallbackQuery, task: Task): Optional<BotApiMethod<*>> {
+	private fun handleConfirmTaskReceiverCallbackQuery(callbackQuery: CallbackQuery, task: Task): EditMessageReplyMarkup {
 		val user = getOrCreateUser(callbackQuery.from)
 		task.receiver = user
 		taskService.save(task)
 
 		// убираем кнопку подтверждения задачи
-		return Optional.of(EditMessageReplyMarkup().setInlineMessageId(callbackQuery.inlineMessageId)
-				.setReplyMarkup(InlineKeyboardMarkup()))
+		return EditMessageReplyMarkup().setInlineMessageId(callbackQuery.inlineMessageId)
+				.setReplyMarkup(InlineKeyboardMarkup())
 	}
 
-	fun handleUsersCallbackQuery(bot: DefaultAbsSender, callbackQuery: CallbackQuery, data: CallbackData)
-			: Optional<BotApiMethod<*>> {
+	private fun handleUsersCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
+			: BotApiMethod<*>? {
 		if (data.page == null)
 			throw IllegalArgumentException()
 		val page = data.page
@@ -128,84 +125,83 @@ class UpdateHandler @Autowired private constructor(
 		val replyMarkup = InlineKeyboardMarkup()
 		replyMarkup.keyboard = users.content.map {
 			listOf(InlineKeyboardButton(getFullUserName(it))
-					.setJsonCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = 0)))
+					.setCustomCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = 0)))
 		}
 		if (users.hasPrevious()) {
 			val button = InlineKeyboardButton(messages.get("pages.previous"))
-					.setJsonCallbackData(CallbackData(type = CallbackDataType.USERS, page = page - 1))
+					.setCustomCallbackData(CallbackData(type = CallbackDataType.USERS, page = page - 1))
 			replyMarkup.keyboard.add(listOf(button))
 		}
 		if (users.hasNext()) {
 			val button = InlineKeyboardButton(messages.get("pages.next"))
-					.setJsonCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
+					.setCustomCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
 			replyMarkup.keyboard.add(listOf(button))
 		}
 		val message = callbackQuery.message
 		val editMessageText = EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
-				.setText(messages.get("chats.count", arrayOf(users.count()))).enableMarkdown(true)
-		bot.executeAsync(editMessageText, object : SentCallback<Serializable> {
+				.setText(messages.get("chats.count", arrayOf(users.totalElements)))
+		executor.executeAsync(editMessageText, object : SentCallback<Serializable> {
 			override fun onResult(method: BotApiMethod<Serializable>, response: Serializable) {
-				bot.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
+				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
 						.setReplyMarkup(replyMarkup), EmptyCallback())
 			}
-
 			override fun onException(method: BotApiMethod<Serializable>, exception: Exception) {}
 			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
 
 		})
-		return Optional.empty()
+		return null
 	}
 
-	fun handleTasksCallbackQuery(bot: DefaultAbsSender, callbackQuery: CallbackQuery, data: CallbackData)
-			: Optional<BotApiMethod<*>> {
+	private fun handleTasksCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
+			: BotApiMethod<*>? {
 		if (data.userId == null || data.page == null)
 			throw IllegalArgumentException()
 		val id1 = data.userId
 		val id2 = callbackQuery.from.id
 		val page = data.page
-		return getTasks(bot, id1, id2, page, callbackQuery.message)
+		return getTasks(executor, id1, id2, page, callbackQuery.message)
 	}
 
-	fun getTasks(bot: DefaultAbsSender, id1: Int, id2: Int, page: Int, message: Message)
-			: Optional<BotApiMethod<*>> {
+	private fun getTasks(executor: BotApiMethodExecutor, id1: Int, id2: Int, page: Int, message: Message)
+			: BotApiMethod<*>? {
 		val user = userService.get(id1)
 		val tasks = taskService.getUserTasks(id1, id2, PageRequest(page, PAGE_SIZE))
 
-		val text = StringBuilder("*Чат: ${getFullUserName(user)}*\n")
+		val text = StringBuilder("*${messages.get("chats.user", arrayOf(getFullUserName(user)))}*\n")
 		tasks.forEachIndexed { i, (sender, taskText) -> text.append("${i + 1}. $taskText _– ${sender.firstName}_\n") }
 		text.append("\n_${messages.get("tasks.chooseTaskNumber")}_")
 		val replyMarkup = InlineKeyboardMarkup().setKeyboard(mutableListOf(tasks.mapIndexed { i, task ->
 			val callbackData = CallbackData(type = CallbackDataType.CHECK_TASK, taskId = task.id, page = page, userId = id1)
-			InlineKeyboardButton("${i + 1}").setJsonCallbackData(callbackData)
+			InlineKeyboardButton("${i + 1}").setCustomCallbackData(callbackData)
 		}))
 		val keybord = replyMarkup.keyboard
 		if (tasks.hasPrevious()) {
 			val button = InlineKeyboardButton(messages.get("pages.previous"))
-					.setJsonCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = id1, page = page - 1))
+					.setCustomCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = id1, page = page - 1))
 			keybord.add(listOf(button))
 		}
 		if (tasks.hasNext()) {
 			val button = InlineKeyboardButton(messages.get("pages.next"))
-					.setJsonCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = id1, page = page + 1))
+					.setCustomCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = id1, page = page + 1))
 			keybord.add(listOf(button))
 		}
 		val callbackData = CallbackData(type = CallbackDataType.USERS, page = 0)
-		val button = InlineKeyboardButton(messages.get("chats.list")).setJsonCallbackData(callbackData)
+		val button = InlineKeyboardButton(messages.get("chats.list")).setCustomCallbackData(callbackData)
 		keybord.add(listOf(button))
-		bot.executeAsync(EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
+		executor.executeAsync(EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
 				.enableMarkdown(true).setText(text.toString()), object : SentCallback<Serializable> {
-			override fun onResult(method: BotApiMethod<Serializable>, response: Serializable) {
-				bot.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
+			override fun onResult(method: BotApiMethod<Serializable>?, response: Serializable?) {
+				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
 						.setReplyMarkup(replyMarkup), EmptyCallback())
 			}
 			override fun onException(method: BotApiMethod<Serializable>, exception: Exception) {}
 			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
 		})
-		return Optional.empty()
+		return null
 	}
 
-	fun handleCheckTaskCallbackQuery(bot: DefaultAbsSender, callbackQuery: CallbackQuery, data: CallbackData)
-			: Optional<BotApiMethod<*>> {
+	private fun handleCheckTaskCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
+			: AnswerCallbackQuery {
 		if (data.taskId == null || data.userId == null || data.page == null)
 			throw IllegalArgumentException()
 		val taskId = data.taskId
@@ -218,22 +214,20 @@ class UpdateHandler @Autowired private constructor(
 			task.doneAt = System.currentTimeMillis()
 			task = taskService.save(task)
 		}
-		getTasks(bot, id1, id2, page, callbackQuery.message)
+		getTasks(executor, id1, id2, page, callbackQuery.message)
 		val answerCallbackQuery = AnswerCallbackQuery().setText(messages.get("tasks.checked", arrayOf(task.text)))
 				.setCallbackQueryId(callbackQuery.id)
 		val noticeTo = userService.get(id1)
-		val noticeFrom = userService.get(id2)
-		return if (noticeTo.chatId == null)
-			Optional.of(answerCallbackQuery)
-		else {
-			// Если есть chatId собеседника, отправим ему уведомление о выполнении задачи
+		// Если есть chatId собеседника, отправим ему уведомление о выполнении задачи
+		if (noticeTo.chatId != null) {
+			val noticeFrom = userService.get(id2)
 			val notice = messages.get("tasks.checked.notice", arrayOf(getFullUserName(noticeFrom), task.text))
-			bot.executeAsync(SendMessage(noticeTo.chatId, notice), EmptyCallback<Message>())
-			Optional.of(answerCallbackQuery)
+			executor.executeAsync(SendMessage(noticeTo.chatId, notice), EmptyCallback<Message>())
 		}
+		return answerCallbackQuery
 	}
 
-	fun getOrCreateUser(telegramUser: TelegramUser, chatId: Long? = null): User {
+	private fun getOrCreateUser(telegramUser: TelegramUser, chatId: Long? = null): User {
 		var user: User
 		if (userService.exists(telegramUser.id)) {
 			user = userService.get(telegramUser.id)
@@ -259,7 +253,7 @@ class UpdateHandler @Autowired private constructor(
 		return user
 	}
 
-	fun handleMessage(message: Message): Optional<SendMessage> {
+	private fun handleMessage(message: Message): SendMessage? {
 		val user = getOrCreateUser(message.from, message.chatId)
 		if (message.isCommand) {
 			val text = message.text.trimStart()
@@ -269,58 +263,47 @@ class UpdateHandler @Autowired private constructor(
 				val replyMarkup = InlineKeyboardMarkup()
 				replyMarkup.keyboard = users.content.map {
 					listOf(InlineKeyboardButton(getFullUserName(it))
-							.setJsonCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = page)))
+							.setCustomCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = page)))
 				}
 				if (users.hasNext()) {
 					val button = InlineKeyboardButton(messages.get("pages.next"))
-							.setJsonCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
+							.setCustomCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
 					replyMarkup.keyboard.add(listOf(button))
 				}
-				val sendMessage = SendMessage(message.chatId, messages.get("chats.count", arrayOf(users.count())))
+				return SendMessage(message.chatId, messages.get("chats.count", arrayOf(users.totalElements)))
 						.enableMarkdown(true).setReplyMarkup(replyMarkup)
-				return Optional.of(sendMessage)
 			}
 			else if (text.startsWith("/help") || text.startsWith("/start")) {
 				val replyMarkup = InlineKeyboardMarkup()
 				replyMarkup.keyboard = listOf(listOf(
 						InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
 				))
-				val sendMessage = SendMessage(message.chatId, messages.get("help")).enableHtml(true)
+				return SendMessage(message.chatId, messages.get("help")).enableHtml(true)
 						.setReplyMarkup(replyMarkup)
-				return Optional.of(sendMessage)
 			}
 			else if (text.startsWith("/create")) {
-				return Optional.of(SendMessage(message.chatId, messages.get("tasks.create.personal"))
-						.setReplyMarkup(ForceReplyKeyboard()))
+				return SendMessage(message.chatId, messages.get("tasks.create.personal"))
+						.setReplyMarkup(ForceReplyKeyboard())
 			}
 		}
 		else if (message.isReply && message.hasText()) {
 			val replyToMessage = message.replyToMessage
 			if (replyToMessage.hasText() && replyToMessage.text.startsWith("/create:")) {
 				val receiver = userService.get(botId)
-				taskService.save(Task(user, message.text, System.currentTimeMillis(), receiver))
-				return Optional.of(SendMessage(message.chatId, messages.get("tasks.created", arrayOf(message.text))))
+				taskService.save(Task(user, message.text, receiver))
+				return SendMessage(message.chatId, messages.get("tasks.created", arrayOf(message.text)))
 			}
 		}
-		return Optional.empty()
+		return null
 	}
 
-	fun InlineKeyboardButton.setJsonCallbackData(callbackData: CallbackData): InlineKeyboardButton {
-		setCallbackData(objectMapper.writeValueAsString(callbackData))
-		return this
-	}
-
-	fun CallbackQuery.getJsonCallbackData(): CallbackData {
-		return objectMapper.readValue(data, CallbackData::class.java)
-	}
-
-	class EmptyCallback<T: Serializable>: SentCallback<T> {
+	private class EmptyCallback<T: Serializable>: SentCallback<T> {
 		override fun onException(method: BotApiMethod<T>, exception: Exception) {}
 		override fun onError(method: BotApiMethod<T>, apiException: TelegramApiRequestException) {}
 		override fun onResult(method: BotApiMethod<T>, response: T) {}
 	}
 
-	fun getFullUserName(user: User): String {
+	private fun getFullUserName(user: User): String {
 		return if (user.id == botId)
 			messages.get("tasks.personal")
 		else

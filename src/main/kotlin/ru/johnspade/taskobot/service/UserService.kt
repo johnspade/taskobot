@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 import ru.johnspade.taskobot.dao.User
 
 @Repository
-private interface UserRepository : JpaRepository<User, Int> {
+interface UserRepository : JpaRepository<User, Int> {
 
 	@Query("""select distinct u from User u, Task t where t.receiver is not null and t.done != true
 	and (u = t.receiver or u = t.sender) and (t.receiver.id = ?1 or t.sender.id = ?1) and u.id != ?1 order by u.id""")
@@ -19,7 +19,7 @@ private interface UserRepository : JpaRepository<User, Int> {
 }
 
 @Service
-class UserService @Autowired private constructor(private val userRepository: UserRepository) {
+class UserService @Autowired constructor(private val userRepository: UserRepository) {
 
 	fun exists(id: Int) = userRepository.exists(id)
 
