@@ -30,7 +30,7 @@ data class Task(
 
 	@Column(name = "id")
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	val id: Long = 0
 
 }

@@ -66,7 +66,7 @@ class UpdateHandler @Autowired constructor(
 			val markupInline = InlineKeyboardMarkup().setKeyboard(listOf(listOf(button)))
 			val article = InlineQueryResultArticle().setInputMessageContent(messageContent).setId("1")
 					.setTitle(messages.get("tasks.create")).setDescription(query).setReplyMarkup(markupInline)
-			return AnswerInlineQuery().setInlineQueryId(inlineQuery.id).setResults(listOf(article))
+			return AnswerInlineQuery().setInlineQueryId(inlineQuery.id).setResults(listOf(article)).setCacheTime(0)
 		}
 		return null
 	}
