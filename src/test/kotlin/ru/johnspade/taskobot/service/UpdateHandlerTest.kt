@@ -62,9 +62,8 @@ class UpdateHandlerTest {
 		override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 				executeAsync(method: Method, callback: Callback) {
 		}
-		override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-			return null
-		}
+
+		override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 	}
 
 	@Before
@@ -213,10 +212,12 @@ class UpdateHandlerTest {
 			on { getChatId() } doReturn chatId
 			on { getMessageId() } doReturn messageId
 		}
+		val callbackQueryId = "100500"
 		val callbackQuery = mock<CallbackQuery> {
 			on { from } doReturn aliceTelegram
 			on { data } doReturn CallbackData(CallbackDataType.USERS, 1).toString()
 			on { getMessage() } doReturn message
+			on { id } doReturn callbackQueryId
 		}
 		val update = mock<Update> {
 			on { hasCallbackQuery() } doReturn true
@@ -261,12 +262,13 @@ class UpdateHandlerTest {
 					else -> throw IllegalStateException()
 				}
 			}
-			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-				return null
-			}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 		}
-		val answer = updateHandler.handle(executor, update)
-		assertNull(answer)
+		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
+		answer.validate()
+		assertEquals(callbackQueryId, answer.callbackQueryId)
+		assertNull(answer.text)
 		taskRepository.delete(testTasks)
 		userRepository.delete(testUsers)
 	}
@@ -373,22 +375,39 @@ class UpdateHandlerTest {
 		val taskText = "new task text"
 		val inlineMessageId = "911"
 		var task = taskService.save(Task(alice, taskText))
+		val callbackQueryId = "100500"
 		val callbackQuery = mock<CallbackQuery> {
 			on { from } doReturn bobTelegram
 			on { data } doReturn CallbackData(type = CallbackDataType.CONFIRM_TASK, taskId = task.id).toString()
 			on { getInlineMessageId() } doReturn inlineMessageId
+			on { id } doReturn callbackQueryId
 		}
 		val update = mock<Update> {
 			on { hasCallbackQuery() } doReturn true
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
-		val answer = updateHandler.handle(executor, update) as EditMessageReplyMarkup
+		val executor = object : BotApiMethodExecutor {
+			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
+					executeAsync(method: Method, callback: Callback) {
+				when (method) {
+					is EditMessageReplyMarkup -> {
+						task = taskService.get(task.id)
+						assertEquals(bob, task.receiver)
+						assertEquals(inlineMessageId, method.inlineMessageId)
+						val replyMarkup = method.replyMarkup as InlineKeyboardMarkup
+						assertEquals(0, replyMarkup.keyboard.size)
+					}
+					else -> throw IllegalStateException()
+				}
+			}
+
+			override fun <T : Serializable, Method : BotApiMethod<T>> execute(method: Method): T? = null
+		}
+		val answer = updateHandler.handle(executor, update)  as AnswerCallbackQuery
 		answer.validate()
-		task = taskService.get(task.id)
-		assertEquals(bob, task.receiver)
-		assertEquals(inlineMessageId, answer.inlineMessageId)
-		val replyMarkup = answer.replyMarkup as InlineKeyboardMarkup
-		assertEquals(0, replyMarkup.keyboard.size)
+		assertEquals(callbackQueryId, answer.callbackQueryId)
+		assertNull(answer.text)
+
 	}
 
 	@Test
@@ -401,10 +420,12 @@ class UpdateHandlerTest {
 			on { getChatId() } doReturn chatId
 			on { getMessageId() } doReturn messageId
 		}
+		val callbackQueryId = "100500"
 		val callbackQuery = mock<CallbackQuery> {
 			on { from } doReturn aliceTelegram
 			on { data } doReturn CallbackData(type = CallbackDataType.TASKS, userId = bob.id, page = 0).toString()
 			on { getMessage() } doReturn message
+			on { id } doReturn callbackQueryId
 		}
 		val update = mock<Update> {
 			on { hasCallbackQuery() } doReturn true
@@ -446,12 +467,13 @@ class UpdateHandlerTest {
 					else -> throw IllegalStateException()
 				}
 			}
-			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-				return null
-			}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 		}
-		val answer = updateHandler.handle(executor, update)
-		assertNull(answer)
+		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
+		answer.validate()
+		assertEquals(callbackQueryId, answer.callbackQueryId)
+		assertNull(answer.text)
 		taskRepository.delete(task)
 	}
 
@@ -465,10 +487,12 @@ class UpdateHandlerTest {
 			on { getChatId() } doReturn chatId
 			on { getMessageId() } doReturn messageId
 		}
+		val callbackQueryId = "100500"
 		val callbackQuery = mock<CallbackQuery> {
 			on { from } doReturn aliceTelegram
 			on { data } doReturn CallbackData(type = CallbackDataType.TASKS, userId = bob.id, page = 1).toString()
 			on { getMessage() } doReturn message
+			on {id } doReturn callbackQueryId
 		}
 		val update = mock<Update> {
 			on { hasCallbackQuery() } doReturn true
@@ -525,12 +549,13 @@ class UpdateHandlerTest {
 					else -> throw IllegalStateException()
 				}
 			}
-			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-				return null
-			}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 		}
-		val answer = updateHandler.handle(executor, update)
-		assertNull(answer)
+		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
+		answer.validate()
+		assertEquals(callbackQueryId, answer.callbackQueryId)
+		assertNull(answer.text)
 		taskRepository.delete(testTasks)
 	}
 
@@ -590,9 +615,8 @@ class UpdateHandlerTest {
 					else -> throw IllegalStateException()
 				}
 			}
-			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-				return null
-			}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 		}
 		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
 		assertNotNull(answer)
@@ -600,7 +624,7 @@ class UpdateHandlerTest {
 		assertTrue { task.done }
 		assertNotNull(task.doneAt)
 		assertEquals(callbackQueryId, answer.callbackQueryId)
-		assertEquals(messages.get("tasks.checked", arrayOf(task.text)), answer.text)
+		assertEquals(messages.get("tasks.checked"), answer.text)
 	}
 
 	@Test
@@ -684,9 +708,8 @@ class UpdateHandlerTest {
 					else -> throw IllegalStateException()
 				}
 			}
-			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
-				return null
-			}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
 		}
 		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
 		assertNotNull(answer)
@@ -694,7 +717,7 @@ class UpdateHandlerTest {
 		assertTrue { task.done }
 		assertNotNull(task.doneAt)
 		assertEquals(callbackQueryId, answer.callbackQueryId)
-		assertEquals(messages.get("tasks.checked", arrayOf(task.text)), answer.text)
+		assertEquals(messages.get("tasks.checked"), answer.text)
 	}
 
 }

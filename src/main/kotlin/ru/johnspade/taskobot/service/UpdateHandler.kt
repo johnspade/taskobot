@@ -82,7 +82,7 @@ class UpdateHandler @Autowired constructor(
 				.setReplyMarkup(markupInline)
 	}
 
-	private fun handleCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery): BotApiMethod<*>? {
+	private fun handleCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery): AnswerCallbackQuery {
 		val data = callbackQuery.getCustomCallbackData()
 		return when (data.type) {
 			CallbackDataType.CONFIRM_TASK -> {
@@ -92,7 +92,7 @@ class UpdateHandler @Autowired constructor(
 				if (task.sender.id == callbackQuery.from.id)
 					handleConfirmTaskSenderCallbackQuery(callbackQuery)
 				else
-					handleConfirmTaskReceiverCallbackQuery(callbackQuery, task)
+					handleConfirmTaskReceiverCallbackQuery(executor, callbackQuery, task)
 			}
 			CallbackDataType.USERS -> handleUsersCallbackQuery(executor, callbackQuery, data)
 			CallbackDataType.TASKS -> handleTasksCallbackQuery(executor, callbackQuery, data)
@@ -105,18 +105,21 @@ class UpdateHandler @Autowired constructor(
 				.setCallbackQueryId(callbackQuery.id)
 	}
 
-	private fun handleConfirmTaskReceiverCallbackQuery(callbackQuery: CallbackQuery, task: Task): EditMessageReplyMarkup {
+	private fun handleConfirmTaskReceiverCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, task: Task)
+			: AnswerCallbackQuery {
 		val user = getOrCreateUser(callbackQuery.from)
 		task.receiver = user
 		taskService.save(task)
 
 		// убираем кнопку подтверждения задачи
-		return EditMessageReplyMarkup().setInlineMessageId(callbackQuery.inlineMessageId)
+		val editMessageReplyMarkup = EditMessageReplyMarkup().setInlineMessageId(callbackQuery.inlineMessageId)
 				.setReplyMarkup(InlineKeyboardMarkup())
+		executor.executeAsync(editMessageReplyMarkup, EmptyCallback<Serializable>())
+		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
 	}
 
 	private fun handleUsersCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
-			: BotApiMethod<*>? {
+			: AnswerCallbackQuery {
 		if (data.page == null)
 			throw IllegalArgumentException()
 		val page = data.page
@@ -149,21 +152,21 @@ class UpdateHandler @Autowired constructor(
 			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
 
 		})
-		return null
+		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
 	}
 
 	private fun handleTasksCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
-			: BotApiMethod<*>? {
+			: AnswerCallbackQuery {
 		if (data.userId == null || data.page == null)
 			throw IllegalArgumentException()
 		val id1 = data.userId
 		val id2 = callbackQuery.from.id
 		val page = data.page
-		return getTasks(executor, id1, id2, page, callbackQuery.message)
+		getTasks(executor, id1, id2, page, callbackQuery.message)
+		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
 	}
 
-	private fun getTasks(executor: BotApiMethodExecutor, id1: Int, id2: Int, page: Int, message: Message)
-			: BotApiMethod<*>? {
+	private fun getTasks(executor: BotApiMethodExecutor, id1: Int, id2: Int, page: Int, message: Message) {
 		val user = userService.get(id1)
 		val tasks = taskService.getUserTasks(id1, id2, PageRequest(page, PAGE_SIZE))
 
@@ -197,7 +200,6 @@ class UpdateHandler @Autowired constructor(
 			override fun onException(method: BotApiMethod<Serializable>, exception: Exception) {}
 			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
 		})
-		return null
 	}
 
 	private fun handleCheckTaskCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
@@ -215,7 +217,7 @@ class UpdateHandler @Autowired constructor(
 			task = taskService.save(task)
 		}
 		getTasks(executor, id1, id2, page, callbackQuery.message)
-		val answerCallbackQuery = AnswerCallbackQuery().setText(messages.get("tasks.checked", arrayOf(task.text)))
+		val answerCallbackQuery = AnswerCallbackQuery().setText(messages.get("tasks.checked"))
 				.setCallbackQueryId(callbackQuery.id)
 		val noticeTo = userService.get(id1)
 		// Если есть chatId собеседника, отправим ему уведомление о выполнении задачи
