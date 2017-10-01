@@ -1,5 +1,6 @@
 package ru.johnspade.taskobot.service
 
+import org.apache.commons.text.StringEscapeUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
@@ -148,8 +149,12 @@ class UpdateHandler @Autowired constructor(
 				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
 						.setReplyMarkup(replyMarkup), EmptyCallback())
 			}
-			override fun onException(method: BotApiMethod<Serializable>, exception: Exception) {}
-			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
+			override fun onException(method: BotApiMethod<Serializable>, e: Exception) {
+				throw e
+			}
+			override fun onError(method: BotApiMethod<Serializable>, e: TelegramApiRequestException) {
+				throw e
+			}
 
 		})
 		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
@@ -170,9 +175,11 @@ class UpdateHandler @Autowired constructor(
 		val user = userService.get(id1)
 		val tasks = taskService.getUserTasks(id1, id2, PageRequest(page, PAGE_SIZE))
 
-		val text = StringBuilder("*${messages.get("chats.user", arrayOf(getFullUserName(user)))}*\n")
-		tasks.forEachIndexed { i, (sender, taskText) -> text.append("${i + 1}. $taskText _– ${sender.firstName}_\n") }
-		text.append("\n_${messages.get("tasks.chooseTaskNumber")}_")
+		val text = StringBuilder("<b>${messages.get("chats.user", arrayOf(getFullUserName(user)))}</b>\n")
+		tasks.forEachIndexed { i, (sender, taskText) ->
+			text.append("${i + 1}. ${StringEscapeUtils.escapeHtml4(taskText)} <i>– ${sender.firstName}</i>\n")
+		}
+		text.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 		val replyMarkup = InlineKeyboardMarkup().setKeyboard(mutableListOf(tasks.mapIndexed { i, task ->
 			val callbackData = CallbackData(type = CallbackDataType.CHECK_TASK, taskId = task.id, page = page, userId = id1)
 			InlineKeyboardButton("${i + 1}").setCustomCallbackData(callbackData)
@@ -192,13 +199,17 @@ class UpdateHandler @Autowired constructor(
 		val button = InlineKeyboardButton(messages.get("chats.list")).setCustomCallbackData(callbackData)
 		keybord.add(listOf(button))
 		executor.executeAsync(EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
-				.enableMarkdown(true).setText(text.toString()), object : SentCallback<Serializable> {
+				.enableHtml(true).setText(text.toString()), object : SentCallback<Serializable> {
 			override fun onResult(method: BotApiMethod<Serializable>?, response: Serializable?) {
 				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
 						.setReplyMarkup(replyMarkup), EmptyCallback())
 			}
-			override fun onException(method: BotApiMethod<Serializable>, exception: Exception) {}
-			override fun onError(method: BotApiMethod<Serializable>, apiException: TelegramApiRequestException) {}
+			override fun onException(method: BotApiMethod<Serializable>, e: Exception) {
+				throw e
+			}
+			override fun onError(method: BotApiMethod<Serializable>, e: TelegramApiRequestException) {
+				throw e
+			}
 		})
 	}
 
@@ -300,8 +311,12 @@ class UpdateHandler @Autowired constructor(
 	}
 
 	private class EmptyCallback<T: Serializable>: SentCallback<T> {
-		override fun onException(method: BotApiMethod<T>, exception: Exception) {}
-		override fun onError(method: BotApiMethod<T>, apiException: TelegramApiRequestException) {}
+		override fun onException(method: BotApiMethod<T>, e: Exception) {
+			throw e
+		}
+		override fun onError(method: BotApiMethod<T>, e: TelegramApiRequestException) {
+			throw e
+		}
 		override fun onResult(method: BotApiMethod<T>, response: T) {}
 	}
 

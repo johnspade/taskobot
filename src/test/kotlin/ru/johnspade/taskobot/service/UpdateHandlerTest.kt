@@ -58,7 +58,7 @@ class UpdateHandlerTest {
 	private lateinit var bob: User
 	private lateinit var aliceTelegram: TelegramUser
 	private lateinit var bobTelegram: TelegramUser
-	private val executor = object : BotApiMethodExecutor {
+	private val executor = object: BotApiMethodExecutor {
 		override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 				executeAsync(method: Method, callback: Callback) {
 		}
@@ -224,7 +224,7 @@ class UpdateHandlerTest {
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
 		val usersWithTasks = userService.getUsersWithTasks(alice.id, PageRequest(0, 5))
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
@@ -386,7 +386,7 @@ class UpdateHandlerTest {
 			on { hasCallbackQuery() } doReturn true
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
@@ -413,6 +413,15 @@ class UpdateHandlerTest {
 	@Test
 	fun returnTasksOnePage() {
 		val taskText = "new task text"
+		returnOneTask(taskText)
+	}
+
+	@Test
+	fun escapeHtmlInTaskText() {
+		returnOneTask("<b>new task text</b>", "&lt;b&gt;new task text&lt;/b&gt;")
+	}
+
+	private fun returnOneTask(taskText: String, returnedTaskText: String = taskText) {
 		val task = taskService.save(Task(alice, taskText, bob))
 		val chatId = 1337L
 		val messageId = 911
@@ -431,7 +440,7 @@ class UpdateHandlerTest {
 			on { hasCallbackQuery() } doReturn true
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
@@ -439,11 +448,11 @@ class UpdateHandlerTest {
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
 						assertEquals(
-								"*${messages.get("chats.user", arrayOf(bob.firstName))}*\n1. ${task.text} " +
-										"_– ${alice.firstName}_\n\n_${messages.get("tasks.chooseTaskNumber")}_",
+								"<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n1. $returnedTaskText " +
+										"<i>– ${alice.firstName}</i>\n\n<i>${messages.get("tasks.chooseTaskNumber")}</i>",
 								method.text
 						)
-						assertTrue { method.toString().contains("parseMode=Markdown") }
+						assertTrue { method.toString().contains("parseMode=html") }
 						callback.onResult(null, null)
 					}
 					is EditMessageReplyMarkup -> {
@@ -499,18 +508,18 @@ class UpdateHandlerTest {
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
 		val tasks = taskService.getUserTasks(bob.id, alice.id, PageRequest(1, 5)).content
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
 					is EditMessageText -> {
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
-						val expectedText = StringBuilder("*${messages.get("chats.user", arrayOf(bob.firstName))}*\n")
-						(0..4).forEach { expectedText.append("${it + 1}. ${tasks[it].text} _– ${alice.firstName}_\n") }
-						expectedText.append("\n_${messages.get("tasks.chooseTaskNumber")}_")
+						val expectedText = StringBuilder("<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n")
+						(0..4).forEach { expectedText.append("${it + 1}. ${tasks[it].text} <i>– ${alice.firstName}</i>\n") }
+						expectedText.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 						assertEquals(expectedText.toString(), method.text)
-						assertTrue { method.toString().contains("parseMode=Markdown") }
+						assertTrue { method.toString().contains("parseMode=html") }
 						callback.onResult(null, null)
 					}
 					is EditMessageReplyMarkup -> {
@@ -582,7 +591,7 @@ class UpdateHandlerTest {
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
 
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
@@ -590,11 +599,11 @@ class UpdateHandlerTest {
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
 						assertEquals(
-								"*${messages.get("chats.user", arrayOf(bob.firstName))}*\n" +
-										"\n_${messages.get("tasks.chooseTaskNumber")}_",
+								"<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n" +
+										"\n<i>${messages.get("tasks.chooseTaskNumber")}</i>",
 								method.text
 						)
-						assertTrue { method.toString().contains("parseMode=Markdown") }
+						assertTrue { method.toString().contains("parseMode=html") }
 						callback.onResult(null, null)
 					}
 					is EditMessageReplyMarkup -> {
@@ -652,7 +661,7 @@ class UpdateHandlerTest {
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
 
-		val executor = object : BotApiMethodExecutor {
+		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
 				when (method) {
@@ -660,11 +669,11 @@ class UpdateHandlerTest {
 						val tasks = taskService.getUserTasks(bob.id, alice.id, PageRequest(1, 5)).content
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
-						val expectedText = StringBuilder("*${messages.get("chats.user", arrayOf(bob.firstName))}*\n")
-						(0..4).forEach { expectedText.append("${it + 1}. ${tasks[it].text} _– ${alice.firstName}_\n") }
-						expectedText.append("\n_${messages.get("tasks.chooseTaskNumber")}_")
+						val expectedText = StringBuilder("<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n")
+						(0..4).forEach { expectedText.append("${it + 1}. ${tasks[it].text} <i>– ${alice.firstName}</i>\n") }
+						expectedText.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 						assertEquals(expectedText.toString(), method.text)
-						assertTrue { method.toString().contains("parseMode=Markdown") }
+						assertTrue { method.toString().contains("parseMode=html") }
 						callback.onResult(null, null)
 					}
 					is EditMessageReplyMarkup -> {

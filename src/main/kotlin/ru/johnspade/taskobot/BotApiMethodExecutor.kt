@@ -8,7 +8,7 @@ import java.io.Serializable
 interface BotApiMethodExecutor {
 
 	@Throws(TelegramApiException::class)
-	fun <T: Serializable, Method: BotApiMethod<T>, Callback : SentCallback<T>> executeAsync(method: Method, callback: Callback)
+	fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>> executeAsync(method: Method, callback: Callback)
 
 	@Throws(TelegramApiException::class)
 	fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T?
