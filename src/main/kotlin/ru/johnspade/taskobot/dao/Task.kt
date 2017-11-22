@@ -15,7 +15,7 @@ data class Task(
 		@ManyToOne
 		@JoinColumn(name = "sender_id", nullable = false)
 		val sender: User,
-		@Column(name = "text", nullable = false)
+		@Column(name = "text", nullable = false, length = 4096)
 		val text: String,
 		@ManyToOne
 		@JoinColumn(name = "receiver_id")
