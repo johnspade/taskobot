@@ -15,20 +15,12 @@ class WebhookBot @Autowired private constructor(
 		@Value("\${BOT_USERNAME}") private val username: String
 ) : TelegramWebhookBot(), BotApiMethodExecutor {
 
-	override fun getBotPath(): String {
-		return token
-	}
+	override fun getBotPath(): String = token
 
-	override fun onWebhookUpdateReceived(update: Update): BotApiMethod<*>? {
-		return handler.handle(this, update)
-	}
+	override fun onWebhookUpdateReceived(update: Update): BotApiMethod<*>? = handler.handle(this, update)
 
-	override fun getBotToken(): String {
-		return token
-	}
+	override fun getBotToken(): String = token
 
-	override fun getBotUsername(): String {
-		return username
-	}
+	override fun getBotUsername(): String = username
 
 }

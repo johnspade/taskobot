@@ -8,7 +8,8 @@ enum class CallbackDataType(val code: Int) {
 	CONFIRM_TASK(0x0),
 	USERS(0x1),
 	TASKS(0x2),
-	CHECK_TASK(0x3);
+	CHECK_TASK(0x3),
+	CHANGE_LANGUAGE(0x4);
 
 }
 
@@ -20,9 +21,7 @@ data class CallbackData(
 		val userId: Int? = null,
 		val taskId: Long? = null
 ) {
-	override fun toString(): String {
-		return "${type.code.toString(16)}%${page?: ""}%${userId?: ""}%${taskId?: ""}"
-	}
+	override fun toString(): String = "${type.code.toString(16)}%${page?: ""}%${userId?: ""}%${taskId?: ""}"
 }
 
 fun InlineKeyboardButton.setCustomCallbackData(callbackData: CallbackData): InlineKeyboardButton {
@@ -40,6 +39,4 @@ fun getCustomCallbackData(data: String): CallbackData {
 	)
 }
 
-fun CallbackQuery.getCustomCallbackData(): CallbackData {
-	return getCustomCallbackData(data)
-}
+fun CallbackQuery.getCustomCallbackData(): CallbackData = getCustomCallbackData(data)

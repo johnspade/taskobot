@@ -3,6 +3,7 @@ package ru.johnspade.taskobot.service
 import org.apache.commons.text.StringEscapeUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.api.methods.AnswerCallbackQuery
@@ -26,15 +27,15 @@ import org.telegram.telegrambots.updateshandlers.SentCallback
 import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
+import ru.johnspade.taskobot.dao.Language
 import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.getCustomCallbackData
 import ru.johnspade.taskobot.setCustomCallbackData
 import java.io.Serializable
 import java.lang.Exception
+import java.util.*
 import org.telegram.telegrambots.api.objects.User as TelegramUser
-
-private const val PAGE_SIZE = 5
 
 @Service
 class UpdateHandler @Autowired constructor(
@@ -44,7 +45,12 @@ class UpdateHandler @Autowired constructor(
 		private val messages: Messages
 ) {
 
+	private companion object {
+		private const val PAGE_SIZE = 5
+	}
+
 	private val botId = token.split(":")[0].toInt()
+	private val emptyCallback = EmptyCallback<Serializable>()
 
 	fun handle(executor: BotApiMethodExecutor, update: Update): BotApiMethod<*>? {
 		return with(update) {
@@ -52,13 +58,15 @@ class UpdateHandler @Autowired constructor(
 				hasInlineQuery() -> handleInlineQuery(inlineQuery)
 				hasChosenInlineQuery() -> handleChosenInlineQuery(chosenInlineQuery)
 				hasCallbackQuery() -> handleCallbackQuery(executor, callbackQuery)
-				hasMessage() -> handleMessage(message)
+				hasMessage() -> handleMessage(executor, message)
 				else -> null
 			}
 		}
 	}
 
 	private fun handleInlineQuery(inlineQuery: InlineQuery): AnswerInlineQuery? {
+		val user = getOrCreateUser(inlineQuery.from)
+		setLocale(user.language)
 		if (inlineQuery.hasQuery()) {
 			val query = inlineQuery.query
 			val messageContent = InputTextMessageContent().enableMarkdown(true).setMessageText("*$query*")
@@ -74,6 +82,7 @@ class UpdateHandler @Autowired constructor(
 
 	private fun handleChosenInlineQuery(chosenInlineQuery: ChosenInlineQuery): EditMessageReplyMarkup {
 		val user = getOrCreateUser(chosenInlineQuery.from)
+		setLocale(user.language)
 		val task = taskService.save(Task(user, chosenInlineQuery.query))
 
 		val button = InlineKeyboardButton().setText(messages.get("tasks.confirm"))
@@ -84,6 +93,8 @@ class UpdateHandler @Autowired constructor(
 	}
 
 	private fun handleCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery): AnswerCallbackQuery {
+		val user = getOrCreateUser(callbackQuery.from)
+		setLocale(user.language)
 		val data = callbackQuery.getCustomCallbackData()
 		return when (data.type) {
 			CallbackDataType.CONFIRM_TASK -> {
@@ -98,6 +109,7 @@ class UpdateHandler @Autowired constructor(
 			CallbackDataType.USERS -> handleUsersCallbackQuery(executor, callbackQuery, data)
 			CallbackDataType.TASKS -> handleTasksCallbackQuery(executor, callbackQuery, data)
 			CallbackDataType.CHECK_TASK -> handleCheckTaskCallbackQuery(executor, callbackQuery, data)
+			CallbackDataType.CHANGE_LANGUAGE -> handleChangeLanguageCallbackQuery(executor, callbackQuery, data)
 		}
 	}
 
@@ -111,11 +123,10 @@ class UpdateHandler @Autowired constructor(
 		val user = getOrCreateUser(callbackQuery.from)
 		task.receiver = user
 		taskService.save(task)
-
 		// убираем кнопку подтверждения задачи
 		val editMessageReplyMarkup = EditMessageReplyMarkup().setInlineMessageId(callbackQuery.inlineMessageId)
 				.setReplyMarkup(InlineKeyboardMarkup())
-		executor.executeAsync(editMessageReplyMarkup, EmptyCallback<Serializable>())
+		executor.executeAsync(editMessageReplyMarkup, emptyCallback)
 		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
 	}
 
@@ -143,20 +154,8 @@ class UpdateHandler @Autowired constructor(
 		}
 		val message = callbackQuery.message
 		val editMessageText = EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
-				.setText(messages.get("chats.count", arrayOf(users.totalElements)))
-		executor.executeAsync(editMessageText, object : SentCallback<Serializable> {
-			override fun onResult(method: BotApiMethod<Serializable>, response: Serializable) {
-				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
-						.setReplyMarkup(replyMarkup), EmptyCallback())
-			}
-			override fun onException(method: BotApiMethod<Serializable>, e: Exception) {
-				throw e
-			}
-			override fun onError(method: BotApiMethod<Serializable>, e: TelegramApiRequestException) {
-				throw e
-			}
-
-		})
+				.setText(messages.get("chats.count", arrayOf(users.totalElements))).setReplyMarkup(replyMarkup)
+		executor.executeAsync(editMessageText, emptyCallback)
 		return AnswerCallbackQuery().setCallbackQueryId(callbackQuery.id)
 	}
 
@@ -199,18 +198,7 @@ class UpdateHandler @Autowired constructor(
 		val button = InlineKeyboardButton(messages.get("chats.list")).setCustomCallbackData(callbackData)
 		keybord.add(listOf(button))
 		executor.executeAsync(EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
-				.enableHtml(true).setText(text.toString()), object : SentCallback<Serializable> {
-			override fun onResult(method: BotApiMethod<Serializable>?, response: Serializable?) {
-				executor.executeAsync(EditMessageReplyMarkup().setChatId(message.chatId).setMessageId(message.messageId)
-						.setReplyMarkup(replyMarkup), EmptyCallback())
-			}
-			override fun onException(method: BotApiMethod<Serializable>, e: Exception) {
-				throw e
-			}
-			override fun onError(method: BotApiMethod<Serializable>, e: TelegramApiRequestException) {
-				throw e
-			}
-		})
+				.enableHtml(true).setText(text.toString()).setReplyMarkup(replyMarkup), emptyCallback)
 	}
 
 	private fun handleCheckTaskCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery, data: CallbackData)
@@ -240,6 +228,26 @@ class UpdateHandler @Autowired constructor(
 		return answerCallbackQuery
 	}
 
+	private fun handleChangeLanguageCallbackQuery(executor: BotApiMethodExecutor, callbackQuery: CallbackQuery,
+												  data: CallbackData): AnswerCallbackQuery {
+		var user = userService.get(callbackQuery.from.id)
+		user.language = if (user.language == Language.ENGLISH) Language.RUSSIAN else Language.ENGLISH
+		user = userService.save(user)
+		setLocale(user.language)
+		val messageText = messages.get("settings.currentLanguage", arrayOf(user.language.languageName))
+		val answerCallbackQuery = AnswerCallbackQuery().setText(messages.get("settings.languageChanged"))
+				.setCallbackQueryId(callbackQuery.id)
+		val replyMarkup = InlineKeyboardMarkup()
+		replyMarkup.keyboard = listOf(listOf(
+				InlineKeyboardButton(messages.get("settings.changeLanguage"))
+						.setCustomCallbackData(CallbackData(type = CallbackDataType.CHANGE_LANGUAGE))
+		))
+		val editMessageText = EditMessageText().setChatId(callbackQuery.message.chatId)
+				.setMessageId(callbackQuery.message.messageId).setText(messageText).setReplyMarkup(replyMarkup)
+		executor.executeAsync(editMessageText, EmptyCallback())
+		return answerCallbackQuery
+	}
+
 	private fun getOrCreateUser(telegramUser: TelegramUser, chatId: Long? = null): User {
 		var user: User
 		if (userService.exists(telegramUser.id)) {
@@ -260,43 +268,47 @@ class UpdateHandler @Autowired constructor(
 			}
 		}
 		else {
+			val language = if (!telegramUser.languageCode.isNullOrEmpty() && telegramUser.languageCode.startsWith("ru", true))
+				Language.RUSSIAN else Language.ENGLISH
 			user = userService.save(User(telegramUser.id, telegramUser.firstName, telegramUser.lastName,
-					telegramUser.userName, telegramUser.languageCode, chatId))
+					telegramUser.userName, telegramUser.languageCode, chatId, language))
 		}
 		return user
 	}
 
-	private fun handleMessage(message: Message): SendMessage? {
+	private fun handleMessage(executor: BotApiMethodExecutor, message: Message): SendMessage? {
 		val user = getOrCreateUser(message.from, message.chatId)
+		setLocale(user.language)
 		if (message.isCommand) {
 			val text = message.text.trimStart()
-			if (text.startsWith("/list")) {
-				val page = 0
-				val users = userService.getUsersWithTasks(message.from.id, PageRequest(page, PAGE_SIZE))
-				val replyMarkup = InlineKeyboardMarkup()
-				replyMarkup.keyboard = users.content.map {
-					listOf(InlineKeyboardButton(getFullUserName(it))
-							.setCustomCallbackData(CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = page)))
+			when {
+				text.startsWith("/list") -> {
+					val page = 0
+					val users = userService.getUsersWithTasks(message.from.id, PageRequest(page, PAGE_SIZE))
+					val replyMarkup = InlineKeyboardMarkup()
+					replyMarkup.keyboard = users.content.map {
+						listOf(InlineKeyboardButton(getFullUserName(it)).setCustomCallbackData(
+								CallbackData(type = CallbackDataType.TASKS, userId = it.id, page = page))
+						)
+					}
+					if (users.hasNext()) {
+						val button = InlineKeyboardButton(messages.get("pages.next"))
+								.setCustomCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
+						replyMarkup.keyboard.add(listOf(button))
+					}
+					return SendMessage(message.chatId, messages.get("chats.count", arrayOf(users.totalElements)))
+							.enableMarkdown(true).setReplyMarkup(replyMarkup)
 				}
-				if (users.hasNext()) {
-					val button = InlineKeyboardButton(messages.get("pages.next"))
-							.setCustomCallbackData(CallbackData(type = CallbackDataType.USERS, page = page + 1))
-					replyMarkup.keyboard.add(listOf(button))
+				text.startsWith("/help") -> return createHelpMessage(message.chatId)
+				text.startsWith("/start") -> {
+					executor.execute(createHelpMessage(message.chatId))
+					return createSettingsMessage(message.chatId, user)
 				}
-				return SendMessage(message.chatId, messages.get("chats.count", arrayOf(users.totalElements)))
-						.enableMarkdown(true).setReplyMarkup(replyMarkup)
-			}
-			else if (text.startsWith("/help") || text.startsWith("/start")) {
-				val replyMarkup = InlineKeyboardMarkup()
-				replyMarkup.keyboard = listOf(listOf(
-						InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
-				))
-				return SendMessage(message.chatId, messages.get("help")).enableHtml(true)
-						.setReplyMarkup(replyMarkup)
-			}
-			else if (text.startsWith("/create")) {
-				return SendMessage(message.chatId, messages.get("tasks.create.personal"))
+				text.startsWith("/create") -> return SendMessage(message.chatId, messages.get("tasks.create.personal"))
 						.setReplyMarkup(ForceReplyKeyboard())
+				text.startsWith("/settings") -> return createSettingsMessage(message.chatId, user)
+				else -> {
+				}
 			}
 		}
 		else if (message.isReply && message.hasText()) {
@@ -308,6 +320,25 @@ class UpdateHandler @Autowired constructor(
 			}
 		}
 		return null
+	}
+
+	private fun createHelpMessage(chatId: Long): SendMessage {
+		val replyMarkup = InlineKeyboardMarkup()
+		replyMarkup.keyboard = listOf(listOf(
+				InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
+		))
+		return SendMessage(chatId, messages.get("help")).enableHtml(true)
+				.setReplyMarkup(replyMarkup)
+	}
+
+	private fun createSettingsMessage(chatId: Long, user: User): SendMessage {
+		val replyMarkup = InlineKeyboardMarkup()
+		replyMarkup.keyboard = listOf(listOf(
+				InlineKeyboardButton(messages.get("settings.changeLanguage"))
+						.setCustomCallbackData(CallbackData(type = CallbackDataType.CHANGE_LANGUAGE))
+		))
+		val messageText = messages.get("settings.currentLanguage", arrayOf(user.language.languageName))
+		return SendMessage(chatId, messageText).setReplyMarkup(replyMarkup)
 	}
 
 	private class EmptyCallback<T: Serializable>: SentCallback<T> {
@@ -325,6 +356,10 @@ class UpdateHandler @Autowired constructor(
 			messages.get("tasks.personal")
 		else
 			"${user.firstName}${if (user.lastName == null) "" else " ${user.lastName}"}"
+	}
+
+	private fun setLocale(language: Language) {
+		LocaleContextHolder.setLocale(Locale.forLanguageTag(language.languageTag))
 	}
 
 }

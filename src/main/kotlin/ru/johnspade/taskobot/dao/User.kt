@@ -2,8 +2,17 @@ package ru.johnspade.taskobot.dao
 
 import javax.persistence.Column
 import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
 import javax.persistence.Id
 import javax.persistence.Table
+
+enum class Language(val languageTag: String, val languageName: String) {
+
+	ENGLISH("en", "English"),
+	RUSSIAN("ru", "Русский")
+
+}
 
 @Entity
 @Table(name = "users")
@@ -20,5 +29,8 @@ data class User(
 		@Column(name = "language_code")
 		var languageCode: String? = null,
 		@Column(name = "chat_id")
-		var chatId: Long? = null
+		var chatId: Long? = null,
+		@Enumerated(EnumType.STRING)
+		@Column(name = "language", nullable = false)
+		var language: Language = Language.ENGLISH
 )

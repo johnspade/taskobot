@@ -16,13 +16,9 @@ class LongPollingBot @Autowired private constructor(
 		@Value("\${BOT_USERNAME}") private val username: String
 ) : TelegramLongPollingBot(), BotApiMethodExecutor {
 
-	override fun getBotToken(): String {
-		return token
-	}
+	override fun getBotToken(): String = token
 
-	override fun getBotUsername(): String {
-		return username
-	}
+	override fun getBotUsername(): String = username
 
 	override fun onUpdateReceived(update: Update) {
 		handler.handle(this, update)?.let {

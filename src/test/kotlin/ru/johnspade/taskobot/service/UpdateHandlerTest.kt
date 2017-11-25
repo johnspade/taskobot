@@ -29,6 +29,7 @@ import org.telegram.telegrambots.updateshandlers.SentCallback
 import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
+import ru.johnspade.taskobot.dao.Language
 import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.getCustomCallbackData
@@ -115,6 +116,7 @@ class UpdateHandlerTest {
 		val inlineQueryId = "911"
 		val inlineQuery = mock<InlineQuery> {
 			on { hasQuery() } doReturn true
+			on { from } doReturn aliceTelegram
 			on { query } doReturn messageText
 			on { id } doReturn inlineQueryId
 		}
@@ -274,8 +276,28 @@ class UpdateHandlerTest {
 	}
 
 	@Test
+	fun returnStart() {
+		val executor = object: BotApiMethodExecutor {
+			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
+					executeAsync(method: Method, callback: Callback) {}
+
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? {
+				when (method) {
+					is SendMessage -> testHelp(method)
+					else -> throw IllegalStateException()
+				}
+				return null
+			}
+		}
+		testSettings(updateHandler.handle(executor, createCommand("/start")) as SendMessage)
+	}
+
+	@Test
 	fun returnHelp() {
-		val answer = updateHandler.handle(executor, createCommand("/help")) as SendMessage
+		testHelp(updateHandler.handle(executor, createCommand("/help")) as SendMessage)
+	}
+
+	private fun testHelp(answer: SendMessage) {
 		assertNotNull(answer)
 		answer.validate()
 		assertEquals(messages.get("help"), answer.text)
@@ -324,8 +346,18 @@ class UpdateHandlerTest {
 	}
 
 	@Test
-	fun createTask() {
-		val taskText = "new task text"
+	fun createShortTask() {
+		createTask()
+	}
+
+	@Test
+	fun createBigTask() {
+		val stringBuilder = StringBuilder()
+		(0..4095).forEach { stringBuilder.append("a") }
+		createTask(stringBuilder.toString())
+	}
+
+	private fun createTask(taskText: String = "new task text") {
 		val inlineMessageId = "911"
 		val chosenInlineQuery = mock<ChosenInlineQuery> {
 			on { from } doReturn aliceTelegram
@@ -453,11 +485,6 @@ class UpdateHandlerTest {
 								method.text
 						)
 						assertTrue { method.toString().contains("parseMode=html") }
-						callback.onResult(null, null)
-					}
-					is EditMessageReplyMarkup -> {
-						assertEquals(chatId.toString(), method.chatId)
-						assertEquals(messageId, method.messageId)
 						val inlineKeyboard = method.replyMarkup.keyboard
 						assertEquals(2, inlineKeyboard.size)
 						var inlineKeybordButton = inlineKeyboard[0][0]
@@ -520,11 +547,6 @@ class UpdateHandlerTest {
 						expectedText.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 						assertEquals(expectedText.toString(), method.text)
 						assertTrue { method.toString().contains("parseMode=html") }
-						callback.onResult(null, null)
-					}
-					is EditMessageReplyMarkup -> {
-						assertEquals(chatId.toString(), method.chatId)
-						assertEquals(messageId, method.messageId)
 						val inlineKeyboard = method.replyMarkup.keyboard
 						assertEquals(4, inlineKeyboard.size)
 						assertEquals(5, inlineKeyboard[0].size)
@@ -604,11 +626,6 @@ class UpdateHandlerTest {
 								method.text
 						)
 						assertTrue { method.toString().contains("parseMode=html") }
-						callback.onResult(null, null)
-					}
-					is EditMessageReplyMarkup -> {
-						assertEquals(chatId.toString(), method.chatId)
-						assertEquals(messageId, method.messageId)
 						val inlineKeyboard = method.replyMarkup.keyboard
 						assertEquals(2, inlineKeyboard.size)
 						val inlineKeybordButton = inlineKeyboard[1][0]
@@ -660,7 +677,6 @@ class UpdateHandlerTest {
 			on { hasCallbackQuery() } doReturn true
 			on { getCallbackQuery() } doReturn callbackQuery
 		}
-
 		val executor = object: BotApiMethodExecutor {
 			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
 					executeAsync(method: Method, callback: Callback) {
@@ -674,12 +690,6 @@ class UpdateHandlerTest {
 						expectedText.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 						assertEquals(expectedText.toString(), method.text)
 						assertTrue { method.toString().contains("parseMode=html") }
-						callback.onResult(null, null)
-					}
-					is EditMessageReplyMarkup -> {
-						val tasks = taskService.getUserTasks(bob.id, alice.id, PageRequest(1, 5)).content
-						assertEquals(chatId.toString(), method.chatId)
-						assertEquals(messageId, method.messageId)
 						val inlineKeyboard = method.replyMarkup.keyboard
 						assertEquals(4, inlineKeyboard.size)
 						assertEquals(5, inlineKeyboard[0].size)
@@ -727,6 +737,79 @@ class UpdateHandlerTest {
 		assertNotNull(task.doneAt)
 		assertEquals(callbackQueryId, answer.callbackQueryId)
 		assertEquals(messages.get("tasks.checked"), answer.text)
+	}
+
+	@Test
+	fun returnSettings() {
+		testSettings(updateHandler.handle(executor, createCommand("/settings")) as SendMessage)
+	}
+
+	private fun testSettings(answer: SendMessage) {
+		assertNotNull(answer)
+		answer.validate()
+		assertEquals(messages.get("settings.currentLanguage", arrayOf(alice.language.languageName)), answer.text)
+		val inlineKeybord = answer.replyMarkup as InlineKeyboardMarkup
+		assertEquals(1, inlineKeybord.keyboard.size)
+		assertEquals(1, inlineKeybord.keyboard[0].size)
+		val inlineKeybordButton = inlineKeybord.keyboard[0][0]
+		assertEquals(messages.get("settings.changeLanguage"), inlineKeybordButton.text)
+		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+		assertEquals(CallbackDataType.CHANGE_LANGUAGE, callbackData.type)
+	}
+
+	@Test
+	fun changeLanguage() {
+		val userId = 3
+		var user = userService.save(User(userId, "John", language = Language.ENGLISH))
+		val userTelegram = createTelegramUser(user)
+		val chatId = 1337L
+		val messageId = 911
+		val callbackQueryId = "112"
+		val message = mock<Message> {
+			on { getChatId() } doReturn chatId
+			on { getMessageId() } doReturn messageId
+		}
+		val callbackQuery = mock<CallbackQuery> {
+			on { from } doReturn userTelegram
+			on { data } doReturn CallbackData(type = CallbackDataType.CHANGE_LANGUAGE).toString()
+			on { getMessage() } doReturn message
+			on { id } doReturn callbackQueryId
+		}
+		val update = mock<Update> {
+			on { hasCallbackQuery() } doReturn true
+			on { getCallbackQuery() } doReturn callbackQuery
+		}
+		val executor = object: BotApiMethodExecutor {
+			override fun <T: Serializable, Method: BotApiMethod<T>, Callback: SentCallback<T>>
+					executeAsync(method: Method, callback: Callback) {
+				when (method) {
+					is EditMessageText -> {
+						assertEquals(chatId.toString(), method.chatId)
+						assertEquals(messageId, method.messageId)
+						assertEquals(
+								messages.get("settings.currentLanguage", arrayOf(user.language.languageName)),
+								method.text
+						)
+						val inlineKeybord = method.replyMarkup as InlineKeyboardMarkup
+						assertEquals(1, inlineKeybord.keyboard.size)
+						assertEquals(1, inlineKeybord.keyboard[0].size)
+						val inlineKeybordButton = inlineKeybord.keyboard[0][0]
+						assertEquals(messages.get("settings.changeLanguage"), inlineKeybordButton.text)
+						val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						assertEquals(CallbackDataType.CHANGE_LANGUAGE, callbackData.type)
+					}
+					else -> throw IllegalStateException()
+				}
+			}
+			override fun <T: Serializable, Method: BotApiMethod<T>> execute(method: Method): T? = null
+		}
+		val answer = updateHandler.handle(executor, update) as AnswerCallbackQuery
+		assertNotNull(answer)
+		assertEquals(callbackQueryId, answer.callbackQueryId)
+		assertEquals(messages.get("settings.languageChanged"), answer.text)
+		user = userRepository.getOne(userId)
+		assertEquals(Language.RUSSIAN, user.language)
+		userRepository.delete(userId)
 	}
 
 }
