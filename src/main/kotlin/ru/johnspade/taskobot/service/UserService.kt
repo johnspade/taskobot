@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 import ru.johnspade.taskobot.dao.User
 
 @Repository
-interface UserRepository : JpaRepository<User, Int> {
+interface UserRepository: JpaRepository<User, Int> {
 
 	@Query("""select distinct u from User u, Task t where t.receiver is not null and t.done != true
 	and (u = t.receiver or u = t.sender) and (t.receiver.id = ?1 or t.sender.id = ?1) and u.id != ?1 order by u.id""")

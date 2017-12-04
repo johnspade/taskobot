@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 import ru.johnspade.taskobot.dao.Task
 
 @Repository
-interface TaskRepository : JpaRepository<Task, Long> {
+interface TaskRepository: JpaRepository<Task, Long> {
 
 	@Query("""select t from Task t where t.receiver != null and t.done != true and
 	((t.sender.id = ?1 and t.receiver.id = ?2) or (t.sender.id = ?2 and t.receiver.id = ?1)) order by t.createdAt desc""")

@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component
 import org.telegram.telegrambots.api.methods.BotApiMethod
 import org.telegram.telegrambots.api.objects.Update
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
-import ru.johnspade.taskobot.service.UpdateHandler
 import java.io.Serializable
 
 @Component
