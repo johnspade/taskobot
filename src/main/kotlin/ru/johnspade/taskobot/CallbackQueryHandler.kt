@@ -10,10 +10,9 @@ import ru.johnspade.taskobot.service.LocaleService
 @Service
 class CallbackQueryHandler @Autowired constructor(
 		private val localeService: LocaleService,
-		private val botService: BotService
+		private val botService: BotService,
+		private val botControllerContainer: BotControllerContainer
 ) {
-
-	private val botControllerContainer = BotControllerContainer
 
 	fun handle(executor: BotApiMethodExecutor, update: Update): AnswerCallbackQuery {
 		val callbackQuery = update.callbackQuery

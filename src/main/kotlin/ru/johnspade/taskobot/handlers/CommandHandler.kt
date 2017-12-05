@@ -11,8 +11,10 @@ import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.BotController
 import ru.johnspade.taskobot.MessageMapping
 import ru.johnspade.taskobot.PAGE_SIZE
+import ru.johnspade.taskobot.createChangeLanguageCallbackData
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.createUsersCallbackData
+import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.service.BotService
 import ru.johnspade.taskobot.service.Messages
 import ru.johnspade.taskobot.service.UserService
@@ -45,14 +47,14 @@ class CommandHandler @Autowired constructor(
 
 	@MessageMapping("help")
 	fun handleHelpCommand(message: Message): SendMessage {
-		return botService.createHelpMessage(message.chatId)
+		return createHelpMessage(message.chatId)
 	}
 
 	@MessageMapping("start")
 	fun handleStartCommand(executor: BotApiMethodExecutor, message: Message): SendMessage {
 		val user = botService.getOrCreateUser(message.from, message.chatId)
-		executor.execute(botService.createHelpMessage(message.chatId))
-		return botService.createSettingsMessage(message.chatId, user)
+		executor.execute(createHelpMessage(message.chatId))
+		return createSettingsMessage(message.chatId, user)
 	}
 
 	@MessageMapping("create")
@@ -63,7 +65,26 @@ class CommandHandler @Autowired constructor(
 	@MessageMapping("settings")
 	fun handleSettingsCommand(message: Message): SendMessage {
 		val user = botService.getOrCreateUser(message.from, message.chatId)
-		return botService.createSettingsMessage(message.chatId, user)
+		return createSettingsMessage(message.chatId, user)
+	}
+
+	private fun createHelpMessage(chatId: Long): SendMessage {
+		val replyMarkup = InlineKeyboardMarkup()
+		replyMarkup.keyboard = listOf(listOf(
+				InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
+		))
+		return SendMessage(chatId, messages.get("help")).enableHtml(true)
+				.setReplyMarkup(replyMarkup)
+	}
+
+	private fun createSettingsMessage(chatId: Long, user: User): SendMessage {
+		val replyMarkup = InlineKeyboardMarkup()
+		replyMarkup.keyboard = listOf(listOf(
+				InlineKeyboardButton(messages.get("settings.changeLanguage"))
+						.setCustomCallbackData(createChangeLanguageCallbackData())
+		))
+		val messageText = messages.get("settings.currentLanguage", arrayOf(user.language.languageName))
+		return SendMessage(chatId, messageText).setReplyMarkup(replyMarkup)
 	}
 
 }

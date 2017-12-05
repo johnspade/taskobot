@@ -19,12 +19,11 @@ class MessageHandler @Autowired constructor(
 		private val messages: Messages,
 		private val localeService: LocaleService,
 		@Value("\${BOT_TOKEN}") token: String,
-		private val botService: BotService
+		private val botService: BotService,
+		private val botControllerContainer: BotControllerContainer
 ) {
 
 	private val botId = token.split(":")[0].toInt()
-
-	private val botControllerContainer = BotControllerContainer
 
 	fun handle(executor: BotApiMethodExecutor, update: Update): SendMessage? {
 		val message = update.message

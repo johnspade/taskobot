@@ -1,6 +1,9 @@
 package ru.johnspade.taskobot
 
-object BotControllerContainer {
+import org.springframework.stereotype.Component
+
+@Component
+class BotControllerContainer {
 
 	private val callbackQueryControllers: MutableMap<Int, BotApiMethodController> = mutableMapOf()
 	private val messageControllers: MutableMap<String, BotApiMethodController> = mutableMapOf()

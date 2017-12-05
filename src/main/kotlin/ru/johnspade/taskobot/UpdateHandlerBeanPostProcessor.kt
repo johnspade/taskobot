@@ -1,14 +1,15 @@
 package ru.johnspade.taskobot
 
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
 @Order(100)
 @Component
-class TelegramUpdateHandlerBeanPostProcessor: BeanPostProcessor {
+class UpdateHandlerBeanPostProcessor @Autowired constructor(private val botControllerContainer: BotControllerContainer):
+		BeanPostProcessor {
 
-	private val container = BotControllerContainer
 	private val controllers = mutableMapOf<String, Class<Any>>()
 
 	override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
@@ -24,11 +25,12 @@ class TelegramUpdateHandlerBeanPostProcessor: BeanPostProcessor {
 		val original = controllers.getValue(beanName)
 		original.methods.filter { it.isAnnotationPresent(CallbackQueryMapping::class.java) }.forEach {
 			val callbackQueryMapping = it.getAnnotation(CallbackQueryMapping::class.java)
-			container.addCallbackQueryController(callbackQueryMapping.callbackDataType, BotApiMethodController(bean, it))
+			botControllerContainer.addCallbackQueryController(callbackQueryMapping.callbackDataType,
+					BotApiMethodController(bean, it))
 		}
 		original.methods.filter { it.isAnnotationPresent(MessageMapping::class.java) }.forEach {
 			val messageMapping = it.getAnnotation(MessageMapping::class.java)
-			container.addMessageController(messageMapping.message, BotApiMethodController(bean, it))
+			botControllerContainer.addMessageController(messageMapping.message, BotApiMethodController(bean, it))
 		}
 		return bean
 	}

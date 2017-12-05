@@ -4,24 +4,28 @@ import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
 import org.junit.Before
 import org.junit.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.telegram.telegrambots.api.methods.send.SendMessage
 import org.telegram.telegrambots.api.objects.Message
 import org.telegram.telegrambots.api.objects.Update
+import ru.johnspade.taskobot.BotControllerContainer
 import ru.johnspade.taskobot.MessageHandler
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-@Import(MessageHandler::class)
+@Import(MessageHandler::class, BotControllerContainer::class)
 class CreatePersonalTaskTest: UpdateHandlerTest() {
 
+	@Autowired
+	private lateinit var botControllerContainer: BotControllerContainer
 	private lateinit var messageHandler: MessageHandler
 
 	@Before
 	override fun setup() {
 		super.setup()
 		messageHandler = MessageHandler(userService, taskService, messages, localeService,
-				"000000000:00000000000000000000000000000000000", botService)
+				"000000000:00000000000000000000000000000000000", botService, botControllerContainer)
 	}
 
 	@Test

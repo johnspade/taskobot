@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.api.methods.send.SendMessage
 import org.telegram.telegrambots.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.api.objects.Message
 import org.telegram.telegrambots.api.objects.replykeyboard.InlineKeyboardMarkup
@@ -13,7 +12,6 @@ import org.telegram.telegrambots.api.objects.replykeyboard.buttons.InlineKeyboar
 import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.EmptyCallback
 import ru.johnspade.taskobot.PAGE_SIZE
-import ru.johnspade.taskobot.createChangeLanguageCallbackData
 import ru.johnspade.taskobot.createCheckTaskCallbackData
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.createUsersCallbackData
@@ -95,25 +93,6 @@ class BotService @Autowired constructor(
 			messages.get("tasks.personal")
 		else
 			"${user.firstName}${if (user.lastName == null) "" else " ${user.lastName}"}"
-	}
-
-	fun createHelpMessage(chatId: Long): SendMessage {
-		val replyMarkup = InlineKeyboardMarkup()
-		replyMarkup.keyboard = listOf(listOf(
-				InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
-		))
-		return SendMessage(chatId, messages.get("help")).enableHtml(true)
-				.setReplyMarkup(replyMarkup)
-	}
-
-	fun createSettingsMessage(chatId: Long, user: User): SendMessage {
-		val replyMarkup = InlineKeyboardMarkup()
-		replyMarkup.keyboard = listOf(listOf(
-				InlineKeyboardButton(messages.get("settings.changeLanguage"))
-						.setCustomCallbackData(createChangeLanguageCallbackData())
-		))
-		val messageText = messages.get("settings.currentLanguage", arrayOf(user.language.languageName))
-		return SendMessage(chatId, messageText).setReplyMarkup(replyMarkup)
 	}
 
 }
