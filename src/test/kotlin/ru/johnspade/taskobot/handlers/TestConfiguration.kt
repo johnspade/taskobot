@@ -23,6 +23,7 @@ class TestConfiguration {
 		messageSource.setBundleClassLoader(URLClassLoader(arrayOf(url)))
 		messageSource.setBasename("messages/messages")
 		messageSource.setDefaultEncoding("UTF-8")
+		messageSource.setFallbackToSystemLocale(false)
 		return Messages(messageSource)
 	}
 

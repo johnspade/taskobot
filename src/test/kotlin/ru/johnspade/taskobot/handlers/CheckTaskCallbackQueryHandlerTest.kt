@@ -15,9 +15,12 @@ import org.telegram.telegrambots.updateshandlers.SentCallback
 import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.createCheckTaskCallbackData
+import ru.johnspade.taskobot.dao.Language
 import ru.johnspade.taskobot.dao.Task
+import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.getCustomCallbackData
 import java.io.Serializable
+import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -30,13 +33,24 @@ class CheckTaskCallbackQueryHandlerTest: UpdateHandlerTest() {
 	private lateinit var checkTaskCallbackQueryHandler: CheckTaskCallbackQueryHandler
 
 	@Test
-	fun checkTaskOnePage() {
+	fun checkTaskOnePageSameLanguage() {
+		checkTaskOnePage()
+	}
+
+	@Test
+	fun checkTaskOnePageDifferentLanguages() {
+		val user = userService.save(User(3, "John", language = Language.ENGLISH, chatId = 911))
+		checkTaskOnePage(user)
+		userRepository.delete(user)
+	}
+
+	private fun checkTaskOnePage(user: User = bob) {
 		val taskText = "new task text"
-		var task = taskService.save(Task(alice, taskText, bob))
+		var task = taskService.save(Task(alice, taskText, user))
 		val chatId = 1337L
 		val messageId = 911
 		val callbackQueryId = "112"
-		val data = createCheckTaskCallbackData(task.id, 0, bob.id)
+		val data = createCheckTaskCallbackData(task.id, 0, user.id)
 		val message = mock<Message> {
 			on { getChatId() } doReturn chatId
 			on { getMessageId() } doReturn messageId
@@ -55,7 +69,7 @@ class CheckTaskCallbackQueryHandlerTest: UpdateHandlerTest() {
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
 						assertEquals(
-								"<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n" +
+								"<b>${messages.get("chats.user", arrayOf(user.firstName))}</b>\n" +
 										"\n<i>${messages.get("tasks.chooseTaskNumber")}</i>",
 								method.text
 						)
@@ -69,8 +83,12 @@ class CheckTaskCallbackQueryHandlerTest: UpdateHandlerTest() {
 						assertEquals(0, callbackData.page)
 					}
 					is SendMessage -> {
-						assertEquals(bob.chatId.toString(), method.chatId)
-						assertEquals(messages.get("tasks.checked.notice", arrayOf(alice.firstName, taskText)), method.text)
+						assertEquals(user.chatId.toString(), method.chatId)
+						assertEquals(
+								messages.get("tasks.checked.notice", arrayOf(alice.firstName, taskText),
+										Locale.forLanguageTag(user.language.languageTag)),
+								method.text
+						)
 					}
 					else -> throw IllegalStateException()
 				}
@@ -152,7 +170,11 @@ class CheckTaskCallbackQueryHandlerTest: UpdateHandlerTest() {
 					}
 					is SendMessage -> {
 						assertEquals(bob.chatId.toString(), method.chatId)
-						assertEquals(messages.get("tasks.checked.notice", arrayOf(alice.firstName, taskText)), method.text)
+						assertEquals(
+								messages.get("tasks.checked.notice", arrayOf(alice.firstName, taskText),
+										Locale.forLanguageTag(bob.language.languageTag)),
+								method.text
+						)
 					}
 					else -> throw IllegalStateException()
 				}

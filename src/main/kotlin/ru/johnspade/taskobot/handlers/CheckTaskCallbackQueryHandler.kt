@@ -15,6 +15,7 @@ import ru.johnspade.taskobot.service.BotService
 import ru.johnspade.taskobot.service.Messages
 import ru.johnspade.taskobot.service.TaskService
 import ru.johnspade.taskobot.service.UserService
+import java.util.Locale
 
 @BotController
 class CheckTaskCallbackQueryHandler @Autowired constructor(
@@ -46,7 +47,8 @@ class CheckTaskCallbackQueryHandler @Autowired constructor(
 		// Если есть chatId собеседника, отправим ему уведомление о выполнении задачи
 		if (noticeTo.chatId != null) {
 			val noticeFrom = userService.get(id2)
-			val notice = messages.get("tasks.checked.notice", arrayOf(botService.getFullUserName(noticeFrom), task.text))
+			val notice = messages.get("tasks.checked.notice", arrayOf(botService.getFullUserName(noticeFrom), task.text),
+					Locale.forLanguageTag(noticeTo.language.languageTag))
 			executor.executeAsync(SendMessage(noticeTo.chatId, notice), EmptyCallback<Message>())
 		}
 		return answerCallbackQuery
