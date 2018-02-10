@@ -40,7 +40,7 @@ class MessageHandler @Autowired constructor(
 		else if (message.isCommand) {
 			val command = message.text.split(" ")[0].trim().removePrefix("/")
 			val controller = botControllerContainer.getMessageController(command)
-			return controller?.process(executor, update) as  SendMessage?
+			return controller?.process(executor, update) as SendMessage?
 		}
 		return null
 	}

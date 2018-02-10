@@ -15,7 +15,7 @@ class UpdateHandlerBeanPostProcessor @Autowired constructor(private val botContr
 	override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
 		val beanClass = bean.javaClass
 		if (beanClass.isAnnotationPresent(BotController::class.java))
-			controllers.put(beanName, beanClass)
+			controllers[beanName] = beanClass
 		return bean
 	}
 

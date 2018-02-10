@@ -49,7 +49,6 @@ abstract class UpdateHandlerTest {
 	protected lateinit var localeService: LocaleService
 	@Autowired
 	protected lateinit var botService: BotService
-	@Autowired
 	protected lateinit var commandHandler: CommandHandler
 	@Autowired
 	protected lateinit var messages: Messages
@@ -72,6 +71,8 @@ abstract class UpdateHandlerTest {
 		bob = userService.save(User(2, "Bob", chatId = 100500))
 		aliceTelegram = createTelegramUser(alice)
 		bobTelegram = createTelegramUser(bob)
+		commandHandler = CommandHandler(userService, messages, botService, taskService,
+				"000000000:00000000000000000000000000000000000")
 	}
 
 	@After
@@ -100,12 +101,12 @@ abstract class UpdateHandlerTest {
 		answer.validate()
 		assertEquals(messages.get("help"), answer.text)
 		assertTrue { answer.toString().contains("parseMode='html'") }
-		val inlineKeybord = answer.replyMarkup as InlineKeyboardMarkup
-		assertEquals(1, inlineKeybord.keyboard.size)
-		assertEquals(1, inlineKeybord.keyboard[0].size)
-		val inlineKeybordButton = inlineKeybord.keyboard[0][0]
-		assertEquals(messages.get("tasks.start"), inlineKeybordButton.text)
-		assertEquals("", inlineKeybordButton.switchInlineQuery)
+		val inlineKeyboard = answer.replyMarkup as InlineKeyboardMarkup
+		assertEquals(1, inlineKeyboard.keyboard.size)
+		assertEquals(1, inlineKeyboard.keyboard[0].size)
+		val inlineKeyboardButton = inlineKeyboard.keyboard[0][0]
+		assertEquals(messages.get("tasks.start"), inlineKeyboardButton.text)
+		assertEquals("", inlineKeyboardButton.switchInlineQuery)
 	}
 
 	protected fun testSettings(answer: SendMessage, user: User, messages: Messages) {

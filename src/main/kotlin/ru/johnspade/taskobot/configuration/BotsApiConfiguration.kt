@@ -14,9 +14,9 @@ import javax.annotation.PostConstruct
 class BotsApiConfiguration @Autowired constructor(
 		private val webhookBot: WebhookBot,
 		private val longPollingBot: LongPollingBot,
-		@Value("\${BOT_IS_WEBHOOK?:}") private val isWebhook: String,
-		@Value("\${BOT_EXTERNAL_URL?:}") private val externalUrl: String,
-		@Value("\${BOT_INTERNAL_URL?:}") private val internalUrl: String,
+		@Value("\${BOT_IS_WEBHOOK:}") private val isWebhook: String,
+		@Value("\${BOT_EXTERNAL_URL:}") private val externalUrl: String,
+		@Value("\${BOT_INTERNAL_URL:}") private val internalUrl: String,
 		@Value("\${PORT:8080}") private val port: String,
 		@Value("\${BOT_TOKEN}") token: String,
 		private val userService: UserService

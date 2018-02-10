@@ -1,6 +1,7 @@
 package ru.johnspade.taskobot.handlers
 
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.telegram.telegrambots.api.methods.send.SendMessage
 import org.telegram.telegrambots.api.objects.Message
@@ -14,9 +15,11 @@ import ru.johnspade.taskobot.PAGE_SIZE
 import ru.johnspade.taskobot.createChangeLanguageCallbackData
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.createUsersCallbackData
+import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.service.BotService
 import ru.johnspade.taskobot.service.Messages
+import ru.johnspade.taskobot.service.TaskService
 import ru.johnspade.taskobot.service.UserService
 import ru.johnspade.taskobot.setCustomCallbackData
 
@@ -24,8 +27,12 @@ import ru.johnspade.taskobot.setCustomCallbackData
 class CommandHandler @Autowired constructor(
 		private val userService: UserService,
 		private val messages: Messages,
-		private val botService: BotService
+		private val botService: BotService,
+		private val taskService: TaskService,
+		@Value("\${BOT_TOKEN}") token: String
 ) {
+
+	private val botId = token.split(":")[0].toInt()
 
 	@MessageMapping("list")
 	fun handleListCommand(executor: BotApiMethodExecutor, message: Message): SendMessage {
@@ -59,7 +66,16 @@ class CommandHandler @Autowired constructor(
 
 	@MessageMapping("create")
 	fun handleCreateCommand(message: Message): SendMessage {
-		return SendMessage(message.chatId, messages.get("tasks.create.personal")).setReplyMarkup(ForceReplyKeyboard())
+		val text = message.text
+		val task = text.substring(text.indexOf("/create") + 7, text.length).trim()
+		return if (task.isNotBlank()) {
+			val receiver = userService.get(botId)
+			val user = botService.getOrCreateUser(message.from, message.chatId)
+			taskService.save(Task(user, task, receiver))
+			SendMessage(message.chatId, messages.get("tasks.created", arrayOf(task)))
+		}
+		else
+			SendMessage(message.chatId, messages.get("tasks.create.personal")).setReplyMarkup(ForceReplyKeyboard())
 	}
 
 	@MessageMapping("settings")
