@@ -15,6 +15,7 @@ import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.dao.Task
+import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.getCustomCallbackData
 import java.io.Serializable
 import kotlin.test.assertEquals
@@ -38,8 +39,13 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 		returnOneTask("<b>new task text</b>", "&lt;b&gt;new task text&lt;/b&gt;")
 	}
 
-	private fun returnOneTask(taskText: String, returnedTaskText: String = taskText) {
-		val task = taskService.save(Task(alice, taskText, bob))
+	@Test
+	fun personalTasksShouldNotHaveSignature() {
+		returnOneTask("task text", receiver = taskobot)
+	}
+
+	private fun returnOneTask(taskText: String, returnedTaskText: String = taskText, receiver: User = bob) {
+		val task = taskService.save(Task(alice, taskText, receiver))
 		val chatId = 1337L
 		val messageId = 911
 		val message = mock<Message> {
@@ -47,7 +53,7 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 			on { getMessageId() } doReturn messageId
 		}
 		val callbackQueryId = "100500"
-		val data = createTasksCallbackData(bob.id, 0)
+		val data = createTasksCallbackData(receiver.id, 0)
 		val callbackQuery = mock<CallbackQuery> {
 			on { from } doReturn aliceTelegram
 			on { it.data } doReturn data.toString()
@@ -61,9 +67,19 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 					is EditMessageText -> {
 						assertEquals(chatId.toString(), method.chatId)
 						assertEquals(messageId, method.messageId)
+						val expectedSignature: String
+						val expectedChatName: String
+						if (receiver == taskobot) {
+							expectedSignature = ""
+							expectedChatName = messages.get("tasks.personal")
+						}
+						else {
+							expectedSignature = " <i>– ${alice.firstName}</i>"
+							expectedChatName = receiver.firstName
+						}
 						assertEquals(
-								"<b>${messages.get("chats.user", arrayOf(bob.firstName))}</b>\n1. $returnedTaskText " +
-										"<i>– ${alice.firstName}</i>\n\n<i>${messages.get("tasks.chooseTaskNumber")}</i>",
+								"<b>${messages.get("chats.user", arrayOf(expectedChatName))}</b>\n1. $returnedTaskText" +
+										"$expectedSignature\n\n<i>${messages.get("tasks.chooseTaskNumber")}</i>",
 								method.text
 						)
 						assertTrue { method.toString().contains("parseMode=html") }
@@ -75,7 +91,7 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 						assertEquals(CallbackDataType.CHECK_TASK, callbackData.type)
 						assertEquals(task.id, callbackData.taskId)
 						assertEquals(0, callbackData.page)
-						assertEquals(bob.id, callbackData.userId)
+						assertEquals(receiver.id, callbackData.userId)
 						inlineKeybordButton = inlineKeyboard[1][0]
 						assertEquals(messages.get("chats.list"), inlineKeybordButton.text)
 						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)

@@ -22,8 +22,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
-		<kotlin.version>1.2.10</kotlin.version>
-		<telegrambots.version>3.5</telegrambots.version>
+		<kotlin.version>1.2.41</kotlin.version>
+		<telegrambots.version>3.6.1</telegrambots.version>
 		<postgresql.version>9.4.1209</postgresql.version>
 		<jackson.version>2.9.0</jackson.version>
 		<jackson-module-kotlin.version>2.7.5</jackson-module-kotlin.version>

@@ -2,7 +2,6 @@ package ru.johnspade.taskobot.handlers
 
 import com.nhaarman.mockito_kotlin.doReturn
 import com.nhaarman.mockito_kotlin.mock
-import org.junit.Before
 import org.junit.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -18,15 +17,7 @@ import kotlin.test.assertNotNull
 class CreatePersonalTaskTest: UpdateHandlerTest() {
 
 	@Autowired
-	private lateinit var botControllerContainer: BotControllerContainer
 	private lateinit var messageHandler: MessageHandler
-
-	@Before
-	override fun setup() {
-		super.setup()
-		messageHandler = MessageHandler(userService, taskService, messages, localeService,
-				"000000000:00000000000000000000000000000000000", botService, botControllerContainer)
-	}
 
 	@Test
 	fun createPersonalTask() {

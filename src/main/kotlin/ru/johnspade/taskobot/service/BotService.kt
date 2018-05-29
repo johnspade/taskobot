@@ -16,6 +16,7 @@ import ru.johnspade.taskobot.createCheckTaskCallbackData
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.createUsersCallbackData
 import ru.johnspade.taskobot.dao.Language
+import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.setCustomCallbackData
 
@@ -34,30 +35,39 @@ class BotService @Autowired constructor(
 		val tasks = taskService.getUserTasks(id1, id2, PageRequest(page, PAGE_SIZE))
 
 		val text = StringBuilder("<b>${messages.get("chats.user", arrayOf(getFullUserName(user)))}</b>\n")
-		tasks.forEachIndexed { i, (sender, taskText) ->
-			text.append("${i + 1}. ${StringEscapeUtils.escapeHtml4(taskText)} <i>– ${sender.firstName}</i>\n")
-		}
+		tasks.forEachIndexed { i, task -> text.append(composeTaskEntry(i, task)) }
 		text.append("\n<i>${messages.get("tasks.chooseTaskNumber")}</i>")
 		val replyMarkup = InlineKeyboardMarkup().setKeyboard(mutableListOf(tasks.mapIndexed { i, task ->
 			val callbackData = createCheckTaskCallbackData(task.id, page, id1)
 			InlineKeyboardButton("${i + 1}").setCustomCallbackData(callbackData)
 		}))
-		val keybord = replyMarkup.keyboard
+		val keyboard = replyMarkup.keyboard
 		if (tasks.hasPrevious()) {
 			val button = InlineKeyboardButton(messages.get("pages.previous"))
 					.setCustomCallbackData(createTasksCallbackData(id1, page - 1))
-			keybord.add(listOf(button))
+			keyboard.add(listOf(button))
 		}
 		if (tasks.hasNext()) {
 			val button = InlineKeyboardButton(messages.get("pages.next"))
 					.setCustomCallbackData(createTasksCallbackData(id1, page + 1))
-			keybord.add(listOf(button))
+			keyboard.add(listOf(button))
 		}
 		val callbackData = createUsersCallbackData(0)
 		val button = InlineKeyboardButton(messages.get("chats.list")).setCustomCallbackData(callbackData)
-		keybord.add(listOf(button))
+		keyboard.add(listOf(button))
 		executor?.executeAsync(EditMessageText().setChatId(message.chatId).setMessageId(message.messageId)
 				.enableHtml(true).setText(text.toString()).setReplyMarkup(replyMarkup), EmptyCallback())
+	}
+
+	private fun composeTaskEntry(index: Int, task: Task): String {
+		var senderName = " <i>– ${task.sender.firstName}</i>"
+		task.receiver?.let {
+			if (isTaskobot(it))
+				senderName = ""
+		}
+		val number = index + 1
+		val escapedTaskText = StringEscapeUtils.escapeHtml4(task.text)
+		return "$number. $escapedTaskText$senderName\n"
 	}
 
 	fun getOrCreateUser(telegramUser: org.telegram.telegrambots.api.objects.User, chatId: Long? = null): User {
@@ -89,10 +99,14 @@ class BotService @Autowired constructor(
 	}
 
 	fun getFullUserName(user: User): String {
-		return if (user.id == botId)
+		return if (isTaskobot(user))
 			messages.get("tasks.personal")
 		else
 			"${user.firstName}${if (user.lastName == null) "" else " ${user.lastName}"}"
+	}
+
+	private fun isTaskobot(user: User): Boolean {
+		return user.id == botId
 	}
 
 }

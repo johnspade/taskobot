@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.context.annotation.Import
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.junit4.SpringRunner
 import org.telegram.telegrambots.api.methods.BotApiMethod
 import org.telegram.telegrambots.api.methods.send.SendMessage
@@ -19,8 +20,6 @@ import ru.johnspade.taskobot.BotApiMethodExecutor
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.dao.User
 import ru.johnspade.taskobot.getCustomCallbackData
-import ru.johnspade.taskobot.service.BotService
-import ru.johnspade.taskobot.service.LocaleService
 import ru.johnspade.taskobot.service.Messages
 import ru.johnspade.taskobot.service.TaskRepository
 import ru.johnspade.taskobot.service.TaskService
@@ -31,10 +30,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private const val TEST_BOT_ID = "111111111:11111111111111111111111111111111111"
+
 @RunWith(SpringRunner::class)
 @Import(TestConfiguration::class)
 @AutoConfigureTestDatabase
 @DataJpaTest
+@TestPropertySource(properties = ["BOT_TOKEN=$TEST_BOT_ID"])
 abstract class UpdateHandlerTest {
 
 	@Autowired
@@ -46,14 +48,12 @@ abstract class UpdateHandlerTest {
 	@Autowired
 	protected lateinit var taskService: TaskService
 	@Autowired
-	protected lateinit var localeService: LocaleService
-	@Autowired
-	protected lateinit var botService: BotService
 	protected lateinit var commandHandler: CommandHandler
 	@Autowired
 	protected lateinit var messages: Messages
 	protected lateinit var alice: User
 	protected lateinit var bob: User
+	protected lateinit var taskobot: User
 	protected lateinit var aliceTelegram: org.telegram.telegrambots.api.objects.User
 	protected lateinit var bobTelegram: org.telegram.telegrambots.api.objects.User
 	protected val emptyExecutor = object: BotApiMethodExecutor {
@@ -69,15 +69,14 @@ abstract class UpdateHandlerTest {
 		userService.save(User(0, "Taskobot"))
 		alice = userService.save(User(1, "Alice"))
 		bob = userService.save(User(2, "Bob", chatId = 100500))
+		taskobot = userService.save(User(TEST_BOT_ID.split(":")[0].toInt(), "Taskobot"))
 		aliceTelegram = createTelegramUser(alice)
 		bobTelegram = createTelegramUser(bob)
-		commandHandler = CommandHandler(userService, messages, botService, taskService,
-				"000000000:00000000000000000000000000000000000")
 	}
 
 	@After
 	fun destroy() {
-		userRepository.delete(listOf(alice, bob))
+		userRepository.delete(listOf(alice, bob, taskobot))
 	}
 
 	protected fun createTelegramUser(user: User): org.telegram.telegrambots.api.objects.User {
