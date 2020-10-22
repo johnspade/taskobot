@@ -89,7 +89,7 @@ class CommandHandler @Autowired constructor(
 		replyMarkup.keyboard = listOf(listOf(
 				InlineKeyboardButton(messages.get("tasks.start")).setSwitchInlineQuery("")
 		))
-		return SendMessage(chatId, messages.get("help")).enableHtml(true)
+		return SendMessage(chatId, messages.get("help")).enableHtml(true).disableWebPagePreview()
 				.setReplyMarkup(replyMarkup)
 	}
 
