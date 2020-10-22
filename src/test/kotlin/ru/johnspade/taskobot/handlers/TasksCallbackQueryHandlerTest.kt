@@ -12,6 +12,7 @@ import org.telegram.telegrambots.api.objects.CallbackQuery
 import org.telegram.telegrambots.api.objects.Message
 import org.telegram.telegrambots.updateshandlers.SentCallback
 import ru.johnspade.taskobot.BotApiMethodExecutor
+import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.createTasksCallbackData
 import ru.johnspade.taskobot.dao.Task
@@ -87,14 +88,14 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 						assertEquals(2, inlineKeyboard.size)
 						var inlineKeybordButton = inlineKeyboard[0][0]
 						assertEquals("1", inlineKeybordButton.text)
-						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.CHECK_TASK, callbackData.type)
 						assertEquals(task.id, callbackData.taskId)
 						assertEquals(0, callbackData.page)
 						assertEquals(receiver.id, callbackData.userId)
 						inlineKeybordButton = inlineKeyboard[1][0]
 						assertEquals(messages.get("chats.list"), inlineKeybordButton.text)
-						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.USERS, callbackData.type)
 						assertEquals(0, callbackData.page)
 					}
@@ -148,7 +149,7 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 						(0..4).forEach {
 							val inlineKeybordButton = inlineKeyboard[0][it]
 							assertEquals("${it + 1}", inlineKeybordButton.text)
-							val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+							val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 							assertEquals(CallbackDataType.CHECK_TASK, callbackData.type)
 							assertEquals(tasks[it].id, callbackData.taskId)
 							assertEquals(1, callbackData.page)
@@ -156,19 +157,19 @@ class TasksCallbackQueryHandlerTest: UpdateHandlerTest() {
 						}
 						var inlineKeybordButton = inlineKeyboard[1][0]
 						assertEquals(messages.get("pages.previous"), inlineKeybordButton.text)
-						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.TASKS, callbackData.type)
 						assertEquals(0, callbackData.page)
 						assertEquals(bob.id, callbackData.userId)
 						inlineKeybordButton = inlineKeyboard[2][0]
 						assertEquals(messages.get("pages.next"), inlineKeybordButton.text)
-						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.TASKS, callbackData.type)
 						assertEquals(2, callbackData.page)
 						assertEquals(bob.id, callbackData.userId)
 						inlineKeybordButton = inlineKeyboard[3][0]
 						assertEquals(messages.get("chats.list"), inlineKeybordButton.text)
-						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.USERS, callbackData.type)
 						assertEquals(0, callbackData.page)
 					}

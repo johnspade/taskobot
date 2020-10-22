@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.telegram.telegrambots.api.objects.inlinequery.ChosenInlineQuery
 import org.telegram.telegrambots.api.objects.replykeyboard.InlineKeyboardMarkup
+import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.ChosenInlineQueryHandler
 import ru.johnspade.taskobot.getCustomCallbackData
@@ -46,7 +47,7 @@ class ChosenInlineQueryHandlerTest: UpdateHandlerTest() {
 		assertEquals(1, inlineKeybord.keyboard[0].size)
 		val inlineKeybordButton = inlineKeybord.keyboard[0][0]
 		assertEquals(messages.get("tasks.confirm"), inlineKeybordButton.text)
-		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 		assertEquals(CallbackDataType.CONFIRM_TASK, callbackData.type)
 		assertEquals(task.id, callbackData.taskId)
 	}

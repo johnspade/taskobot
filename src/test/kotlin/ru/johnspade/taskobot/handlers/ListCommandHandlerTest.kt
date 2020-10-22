@@ -3,6 +3,7 @@ package ru.johnspade.taskobot.handlers
 import org.junit.Test
 import org.springframework.data.domain.PageRequest
 import org.telegram.telegrambots.api.objects.replykeyboard.InlineKeyboardMarkup
+import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.dao.Task
 import ru.johnspade.taskobot.dao.User
@@ -24,7 +25,7 @@ class ListCommandHandlerTest: UpdateHandlerTest() {
 		assertEquals(1, inlineKeybord.keyboard[0].size)
 		val inlineKeybordButton = inlineKeybord.keyboard[0][0]
 		assertEquals(bob.firstName, inlineKeybordButton.text)
-		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 		assertEquals(CallbackDataType.TASKS, callbackData.type)
 		assertEquals(bob.id, callbackData.userId)
 		taskRepository.delete(task)
@@ -54,14 +55,14 @@ class ListCommandHandlerTest: UpdateHandlerTest() {
 			val inlineKeybordButton = inlineKeyboard.keyboard[it][0]
 			val user = usersWithTasks.content[it]
 			assertEquals(user.firstName, inlineKeybordButton.text)
-			val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+			val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 			assertEquals(CallbackDataType.TASKS, callbackData.type)
 			assertEquals(user.id, callbackData.userId)
 			assertEquals(0, callbackData.page)
 		}
 		val inlineKeybordButton = inlineKeyboard.keyboard[5][0]
 		assertEquals(messages.get("pages.next"), inlineKeybordButton.text)
-		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+		val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 		assertEquals(CallbackDataType.USERS, callbackData.type)
 		assertEquals(1, callbackData.page)
 		taskRepository.delete(testTasks)

@@ -14,7 +14,8 @@ class BotApiMethodController(private val bean: Any, private val method: Method) 
 			invokeParams.add(when (it.type) {
 				Update::class.java -> update
 				CallbackQuery::class.java -> update.callbackQuery
-				CallbackData::class.java -> getCustomCallbackData(update.callbackQuery.data)
+				CallbackData::class.java -> getCustomCallbackData(update.callbackQuery.data) as CallbackData
+				SetLanguage::class.java -> getCustomCallbackData(update.callbackQuery.data) as SetLanguage
 				BotApiMethodExecutor::class.java -> executor
 				Message::class.java -> update.message
 				else -> null

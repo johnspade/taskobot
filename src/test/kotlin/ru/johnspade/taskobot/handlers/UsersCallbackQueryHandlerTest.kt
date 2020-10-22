@@ -13,6 +13,7 @@ import org.telegram.telegrambots.api.objects.CallbackQuery
 import org.telegram.telegrambots.api.objects.Message
 import org.telegram.telegrambots.updateshandlers.SentCallback
 import ru.johnspade.taskobot.BotApiMethodExecutor
+import ru.johnspade.taskobot.CallbackData
 import ru.johnspade.taskobot.CallbackDataType
 import ru.johnspade.taskobot.createUsersCallbackData
 import ru.johnspade.taskobot.dao.Task
@@ -71,19 +72,19 @@ class UsersCallbackQueryHandlerTest: UpdateHandlerTest() {
 							val inlineKeybordButton = inlineKeyboard[it][0]
 							val user = usersWithTasks.content[it]
 							assertEquals(user.firstName, inlineKeybordButton.text)
-							val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+							val callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 							assertEquals(CallbackDataType.TASKS, callbackData.type)
 							assertEquals(user.id, callbackData.userId)
 							assertEquals(0, callbackData.page)
 						}
 						var inlineKeybordButton = inlineKeyboard[5][0]
 						assertEquals(messages.get("pages.previous"), inlineKeybordButton.text)
-						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						var callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.USERS, callbackData.type)
 						assertEquals(0, callbackData.page)
 						inlineKeybordButton = inlineKeyboard[6][0]
 						assertEquals(messages.get("pages.next"), inlineKeybordButton.text)
-						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData)
+						callbackData = getCustomCallbackData(inlineKeybordButton.callbackData) as CallbackData
 						assertEquals(CallbackDataType.USERS, callbackData.type)
 						assertEquals(2, callbackData.page)
 					}

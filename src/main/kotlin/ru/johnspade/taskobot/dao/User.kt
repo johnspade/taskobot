@@ -10,7 +10,8 @@ import javax.persistence.Table
 enum class Language(val languageTag: String, val languageName: String) {
 
 	ENGLISH("en", "English"),
-	RUSSIAN("ru", "Русский")
+	RUSSIAN("ru", "Русский"),
+	TURKISH("tr", "Turkish")
 
 }
 
