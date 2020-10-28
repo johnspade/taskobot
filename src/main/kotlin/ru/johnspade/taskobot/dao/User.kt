@@ -11,7 +11,8 @@ enum class Language(val languageTag: String, val languageName: String) {
 
 	ENGLISH("en", "English"),
 	RUSSIAN("ru", "Русский"),
-	TURKISH("tr", "Turkish")
+	TURKISH("tr", "Turkish"),
+	ITALIAN("it", "Italian")
 
 }
 
